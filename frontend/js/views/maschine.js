@@ -280,7 +280,7 @@ async function rueckgabeModal(mitgenommen = []) {
         <p class="text-sm font-medium text-slate-700 mb-2">Zubehör zurückgegeben?</p>
         <div class="space-y-2">
           ${mitgenommen.map((z) => `
-            <label class="flex items-center gap-3 p-2 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+            <label class="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
               <input type="checkbox" data-zid="${z.id}" checked class="w-5 h-5">
               <span class="text-sm">${escapeHtml(z.bezeichnung)}</span>
             </label>`).join('')}
@@ -304,11 +304,11 @@ async function rueckgabeModal(mitgenommen = []) {
   const zustand   = body.querySelector('input[name=zust]:checked').value;
   const kommentar = body.querySelector('#r-komm').value.trim() || null;
 
-  const result_obj = { zustand, kommentar };
+  const payload = { zustand, kommentar };
   if (mitgenommen.length) {
-    result_obj.zurueckgebrachte_zubehoer_ids =
+    payload.zurueckgebrachte_zubehoer_ids =
       [...body.querySelectorAll('input[data-zid]:checked')]
         .map((c) => Number(c.dataset.zid));
   }
-  return result_obj;
+  return payload;
 }
