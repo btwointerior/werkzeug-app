@@ -303,6 +303,7 @@ async function rueckgabeModal(mitgenommen = []) {
         variant: 'primary',
         value: 'go',
         onClick: () => {
+          body.querySelector('#r-komm-pflicht').classList.add('hidden');
           if (mitgenommen.length) {
             const zurueck = body.querySelectorAll('input[data-zid]:checked').length;
             const fehlt = zurueck < mitgenommen.length;
