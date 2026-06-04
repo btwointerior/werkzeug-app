@@ -287,6 +287,9 @@ async function rueckgabeModal(mitgenommen = []) {
         </div>
       </div>` : ''}
     <label class="block text-sm font-medium text-slate-700 mb-1" for="r-komm">Kommentar (optional)</label>
+    <p id="r-komm-pflicht" class="text-sm text-rose-600 mb-2 hidden">
+      Es fehlt Zubehör — bitte im Kommentar angeben, was los ist.
+    </p>
     <textarea id="r-komm" rows="3"
               class="w-full border border-slate-300 rounded-lg p-2 text-sm"
               placeholder="Was ist passiert?"></textarea>`;
@@ -295,8 +298,25 @@ async function rueckgabeModal(mitgenommen = []) {
     titel: 'Maschine zurückgeben',
     body,
     buttons: [
-      { label: 'Bestätigen', variant: 'primary',   value: 'go' },
-      { label: 'Abbrechen',  variant: 'secondary', value: null },
+      {
+        label: 'Bestätigen',
+        variant: 'primary',
+        value: 'go',
+        onClick: () => {
+          if (mitgenommen.length) {
+            const zurueck = body.querySelectorAll('input[data-zid]:checked').length;
+            const fehlt = zurueck < mitgenommen.length;
+            const komm = body.querySelector('#r-komm').value.trim();
+            if (fehlt && !komm) {
+              body.querySelector('#r-komm-pflicht').classList.remove('hidden');
+              body.querySelector('#r-komm').focus();
+              return false;  // Modal offen lassen
+            }
+          }
+          return true;
+        },
+      },
+      { label: 'Abbrechen', variant: 'secondary', value: null },
     ],
   });
   if (result !== 'go') return null;
