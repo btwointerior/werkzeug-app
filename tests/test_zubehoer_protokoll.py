@@ -223,3 +223,14 @@ def test_meine_ausleihen_zeigt_zubehoer(client, db):
     assert mitgenommen[0]["bezeichnung"] == "Akku"
     assert mitgenommen[0]["zurueckgebracht"] is None
     assert "id" in mitgenommen[0]
+
+
+def test_meine_ausleihen_ohne_zubehoer_gibt_leere_liste(client, db):
+    user = make_user(db, "max")
+    m = _maschine_mit_zubehoer(db, teile=("Akku",))
+    client.post(f"/api/maschinen/{m.id}/ausleihen",
+                json={"zubehoer_bezeichnungen": []},
+                headers=auth_header(user))
+    r = client.get("/api/maschinen/meine", headers=auth_header(user))
+    assert r.status_code == 200
+    assert r.json()[0]["mitgenommenes_zubehoer"] == []
