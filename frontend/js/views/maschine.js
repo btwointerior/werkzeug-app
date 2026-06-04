@@ -208,7 +208,9 @@ export async function renderMaschine(code) {
   }
 
   async function zurueckKlick() {
-    const eingabe = await rueckgabeModal();
+    const mitgenommen =
+      (maschine.aktuelle_ausleihe && maschine.aktuelle_ausleihe.mitgenommenes_zubehoer) || [];
+    const eingabe = await rueckgabeModal(mitgenommen);
     if (!eingabe) return;
     try {
       maschine = await api.post(`/api/maschinen/${maschine.id}/zurueckgeben`, eingabe);
@@ -255,7 +257,7 @@ async function ausleihZubehoerModal(zubehoerListe) {
   return checked;
 }
 
-async function rueckgabeModal() {
+async function rueckgabeModal(mitgenommen = []) {
   const body = document.createElement('div');
   body.innerHTML = `
     <p class="text-sm text-slate-600 mb-3">Wie ist der Zustand?</p>
@@ -273,6 +275,17 @@ async function rueckgabeModal() {
         <span class="font-medium text-amber-700">Wartung nötig</span>
       </label>
     </div>
+    ${mitgenommen.length ? `
+      <div class="mb-4">
+        <p class="text-sm font-medium text-slate-700 mb-2">Zubehör zurückgegeben?</p>
+        <div class="space-y-2">
+          ${mitgenommen.map((z) => `
+            <label class="flex items-center gap-3 p-2 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+              <input type="checkbox" data-zid="${z.id}" checked class="w-5 h-5">
+              <span class="text-sm">${escapeHtml(z.bezeichnung)}</span>
+            </label>`).join('')}
+        </div>
+      </div>` : ''}
     <label class="block text-sm font-medium text-slate-700 mb-1" for="r-komm">Kommentar (optional)</label>
     <textarea id="r-komm" rows="3"
               class="w-full border border-slate-300 rounded-lg p-2 text-sm"
@@ -287,7 +300,15 @@ async function rueckgabeModal() {
     ],
   });
   if (result !== 'go') return null;
+
   const zustand   = body.querySelector('input[name=zust]:checked').value;
   const kommentar = body.querySelector('#r-komm').value.trim() || null;
-  return { zustand, kommentar };
+
+  const result_obj = { zustand, kommentar };
+  if (mitgenommen.length) {
+    result_obj.zurueckgebrachte_zubehoer_ids =
+      [...body.querySelectorAll('input[data-zid]:checked')]
+        .map((c) => Number(c.dataset.zid));
+  }
+  return result_obj;
 }
