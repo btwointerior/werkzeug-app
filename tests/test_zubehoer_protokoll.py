@@ -113,3 +113,11 @@ def test_protokoll_ist_schnappschuss(client, db):
 
     zeile = db.query(AusleiheZubehoer).one()
     assert zeile.bezeichnung == "Akku"  # Protokoll unverändert
+
+
+def test_ausleihen_ohne_body_funktioniert(client, db):
+    user = make_user(db, "max")
+    m = _maschine_mit_zubehoer(db)
+    r = client.post(f"/api/maschinen/{m.id}/ausleihen", headers=auth_header(user))
+    assert r.status_code == 200
+    assert db.query(AusleiheZubehoer).count() == 0
