@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from backend.dependencies import get_current_user
 from backend.models import (
     Ausleihe,
+    AusleiheZubehoer,
     Benutzer,
     Maschine,
     MaschinenStatus,
@@ -16,6 +17,7 @@ from backend.models import (
     get_db,
 )
 from backend.schemas import (
+    AusleihenRequest,
     MaschineOut,
     MeineAusleiheOut,
     ZurueckgabeRequest,
@@ -63,12 +65,14 @@ def maschine_per_code(
 @router.post("/{maschine_id}/ausleihen", response_model=MaschineOut)
 def maschine_ausleihen(
     maschine_id: int,
+    daten: AusleihenRequest | None = None,
     current_user: Benutzer = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> MaschineOut:
     """Übernimmt eine Maschine in die eigene Ausleihe.
 
     Voraussetzungen: Maschine existiert und hat Status 'verfuegbar'.
+    Optional wird das mitgenommene Zubehör protokolliert.
     """
     maschine = db.query(Maschine).filter(Maschine.id == maschine_id).first()
     if maschine is None:
@@ -88,11 +92,24 @@ def maschine_ausleihen(
             detail=meldungen.get(maschine.status, "Maschine ist nicht verfügbar."),
         )
 
+    bezeichnungen = daten.zubehoer_bezeichnungen if daten else []
+    gueltige = {z.bezeichnung for z in maschine.zubehoer_liste}
+    ungueltig = [b for b in bezeichnungen if b not in gueltige]
+    if ungueltig:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unbekanntes Zubehör: {', '.join(ungueltig)}",
+        )
+
     neue_ausleihe = Ausleihe(
         maschine_id=maschine.id,
         benutzer_id=current_user.id,
         ausleih_zeitpunkt=datetime.now(timezone.utc),
     )
+    for bezeichnung in bezeichnungen:
+        neue_ausleihe.mitgenommenes_zubehoer.append(
+            AusleiheZubehoer(bezeichnung=bezeichnung)
+        )
     maschine.status = MaschinenStatus.AUSGELIEHEN
     db.add(neue_ausleihe)
     db.commit()

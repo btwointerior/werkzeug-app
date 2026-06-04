@@ -133,6 +133,11 @@ class MaschineUpdate(BaseModel):
 #  Ausleihe
 # ============================================================
 
+class AusleihenRequest(BaseModel):
+    """Beim Ausleihen mitgenommenes Zubehör (Bezeichnungen aus der Maschinen-Liste)."""
+    zubehoer_bezeichnungen: list[str] = []
+
+
 class ZurueckgabeRequest(BaseModel):
     zustand: RueckgabeZustand
     kommentar: Optional[str] = None
