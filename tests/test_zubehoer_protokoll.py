@@ -166,7 +166,6 @@ def test_rueckgabe_mit_fehlendem_teil(client, db):
     )
 
     assert r.status_code == 200
-    db.expire_all()
     akku = db.query(AusleiheZubehoer).filter_by(bezeichnung="Akku").one()
     lader = db.query(AusleiheZubehoer).filter_by(bezeichnung="Ladegerät").one()
     assert akku.zurueckgebracht is True
@@ -190,3 +189,20 @@ def test_rueckgabe_ohne_feld_abwaertskompatibel(client, db):
     assert r.status_code == 200
     zeile = db.query(AusleiheZubehoer).one()
     assert zeile.zurueckgebracht is True
+
+
+def test_rueckgabe_fremde_id_wird_ignoriert(client, db):
+    user = make_user(db, "max")
+    m = _ausleihen_mit_zubehoer(client, db, user, ("Akku",), ("Akku",))
+    akku = db.query(AusleiheZubehoer).one()
+
+    r = client.post(
+        f"/api/maschinen/{m.id}/zurueckgeben",
+        json={"zustand": "ok", "zurueckgebrachte_zubehoer_ids": [akku.id + 9999]},
+        headers=auth_header(user),
+    )
+
+    assert r.status_code == 200
+    db.refresh(akku)
+    assert akku.zurueckgebracht is False  # fremde ID hat keinen Effekt
+    assert "Akku" in db.query(Ausleihe).one().rueckgabe_kommentar
