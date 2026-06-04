@@ -154,16 +154,15 @@ def maschine_zurueckgeben(
             "darf sie zurückgeben.",
         )
 
-    offene_ausleihe.rueckgabe_zeitpunkt = datetime.now(timezone.utc)
-    offene_ausleihe.rueckgabe_zustand = daten.zustand
-
+    # --- Zubehör-Abgleich zuerst nur PRÜFEN (noch nichts mutieren) ---
     kommentar = daten.kommentar
-    if daten.zurueckgebrachte_zubehoer_ids is None:
-        # Abwärtskompatibel: ohne Angabe gilt alles als zurückgebracht.
-        for zeile in offene_ausleihe.mitgenommenes_zubehoer:
-            zeile.zurueckgebracht = True
-    else:
-        zurueck_ids = set(daten.zurueckgebrachte_zubehoer_ids)
+    zurueck_ids = (
+        set(daten.zurueckgebrachte_zubehoer_ids)
+        if daten.zurueckgebrachte_zubehoer_ids is not None
+        else None
+    )
+    fehlend = []
+    if zurueck_ids is not None:
         fehlend = [
             zeile.bezeichnung
             for zeile in offene_ausleihe.mitgenommenes_zubehoer
@@ -174,6 +173,15 @@ def maschine_zurueckgeben(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Bei fehlendem Zubehör ist ein Kommentar erforderlich.",
             )
+
+    # --- Ab hier keine Abbrüche mehr: Rückgabe verbuchen ---
+    offene_ausleihe.rueckgabe_zeitpunkt = datetime.now(timezone.utc)
+    offene_ausleihe.rueckgabe_zustand = daten.zustand
+    if zurueck_ids is None:
+        # Abwärtskompatibel: ohne Angabe gilt alles als zurückgebracht.
+        for zeile in offene_ausleihe.mitgenommenes_zubehoer:
+            zeile.zurueckgebracht = True
+    else:
         for zeile in offene_ausleihe.mitgenommenes_zubehoer:
             zeile.zurueckgebracht = zeile.id in zurueck_ids
         if fehlend:
