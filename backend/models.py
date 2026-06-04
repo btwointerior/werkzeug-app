@@ -221,6 +221,11 @@ class Ausleihe(Base):
     # Beziehungen
     maschine = relationship("Maschine", back_populates="ausleihen")
     benutzer = relationship("Benutzer", back_populates="ausleihen")
+    mitgenommenes_zubehoer = relationship(
+        "AusleiheZubehoer",
+        back_populates="ausleihe",
+        cascade="all, delete-orphan",
+    )
 
     @property
     def ist_offen(self) -> bool:
@@ -234,6 +239,36 @@ class Ausleihe(Base):
     def __repr__(self) -> str:
         zustand = "offen" if self.ist_offen else "abgeschlossen"
         return f"<Ausleihe #{self.id} [{zustand}]>"
+
+
+# --------------------------------------------------------------------
+#  AusleiheZubehoer - Mitnahme-Protokoll pro Ausleihe
+# --------------------------------------------------------------------
+
+class AusleiheZubehoer(Base):
+    """Schnappschuss eines beim Ausleihen mitgenommenen Zubehörteils.
+
+    Der Name wird kopiert (nicht per FK verlinkt), damit das Protokoll
+    unveränderlich bleibt, auch wenn der Admin das Zubehör der Maschine
+    später ändert oder löscht.
+    """
+    __tablename__ = "ausleihe_zubehoer"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    ausleihe_id = Column(
+        Integer,
+        ForeignKey("ausleihen.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    bezeichnung = Column(String(120), nullable=False)
+    # NULL = Rückgabe noch offen; True/False wird bei der Rückgabe gesetzt
+    zurueckgebracht = Column(Boolean, nullable=True)
+
+    ausleihe = relationship("Ausleihe", back_populates="mitgenommenes_zubehoer")
+
+    def __repr__(self) -> str:
+        return f"<AusleiheZubehoer '{self.bezeichnung}'>"
 
 
 # --------------------------------------------------------------------
