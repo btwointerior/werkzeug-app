@@ -156,7 +156,23 @@ def maschine_zurueckgeben(
 
     offene_ausleihe.rueckgabe_zeitpunkt = datetime.now(timezone.utc)
     offene_ausleihe.rueckgabe_zustand = daten.zustand
-    offene_ausleihe.rueckgabe_kommentar = daten.kommentar
+
+    kommentar = daten.kommentar
+    if daten.zurueckgebrachte_zubehoer_ids is None:
+        # Abwärtskompatibel: ohne Angabe gilt alles als zurückgebracht.
+        for zeile in offene_ausleihe.mitgenommenes_zubehoer:
+            zeile.zurueckgebracht = True
+    else:
+        zurueck_ids = set(daten.zurueckgebrachte_zubehoer_ids)
+        fehlend = []
+        for zeile in offene_ausleihe.mitgenommenes_zubehoer:
+            zeile.zurueckgebracht = zeile.id in zurueck_ids
+            if not zeile.zurueckgebracht:
+                fehlend.append(zeile.bezeichnung)
+        if fehlend:
+            vermerk = "⚠ Nicht zurückgegeben: " + ", ".join(fehlend)
+            kommentar = f"{kommentar}\n{vermerk}" if kommentar else vermerk
+    offene_ausleihe.rueckgabe_kommentar = kommentar
 
     neuer_status = {
         RueckgabeZustand.OK: MaschinenStatus.VERFUEGBAR,

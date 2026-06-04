@@ -142,6 +142,9 @@ class AusleihenRequest(BaseModel):
 class ZurueckgabeRequest(BaseModel):
     zustand: RueckgabeZustand
     kommentar: Optional[str] = None
+    # IDs der AusleiheZubehoer-Zeilen, die zurückkamen.
+    # None = altes Verhalten: alles gilt als zurückgebracht.
+    zurueckgebrachte_zubehoer_ids: Optional[list[int]] = None
 
 
 class MeineAusleiheOut(_ORM):
