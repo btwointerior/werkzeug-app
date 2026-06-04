@@ -198,7 +198,8 @@ def test_rueckgabe_fremde_id_wird_ignoriert(client, db):
 
     r = client.post(
         f"/api/maschinen/{m.id}/zurueckgeben",
-        json={"zustand": "ok", "zurueckgebrachte_zubehoer_ids": [akku.id + 9999]},
+        json={"zustand": "ok", "kommentar": "Akku fehlt leider",
+              "zurueckgebrachte_zubehoer_ids": [akku.id + 9999]},
         headers=auth_header(user),
     )
 
@@ -234,3 +235,71 @@ def test_meine_ausleihen_ohne_zubehoer_gibt_leere_liste(client, db):
     r = client.get("/api/maschinen/meine", headers=auth_header(user))
     assert r.status_code == 200
     assert r.json()[0]["mitgenommenes_zubehoer"] == []
+
+
+def test_rueckgabe_fehlend_ohne_kommentar_400(client, db):
+    user = make_user(db, "max")
+    m = _ausleihen_mit_zubehoer(client, db, user, ("Akku", "Ladegerät"), ("Akku", "Ladegerät"))
+    akku = db.query(AusleiheZubehoer).filter_by(bezeichnung="Akku").one()
+
+    r = client.post(
+        f"/api/maschinen/{m.id}/zurueckgeben",
+        json={"zustand": "ok", "kommentar": None,
+              "zurueckgebrachte_zubehoer_ids": [akku.id]},
+        headers=auth_header(user),
+    )
+
+    assert r.status_code == 400
+    # Rückgabe NICHT verbucht:
+    db.expire_all()
+    ausleihe = db.query(Ausleihe).one()
+    assert ausleihe.rueckgabe_zeitpunkt is None
+    assert all(z.zurueckgebracht is None for z in db.query(AusleiheZubehoer).all())
+    db.refresh(m)
+    assert m.status == MaschinenStatus.AUSGELIEHEN
+
+
+def test_rueckgabe_fehlend_nur_whitespace_kommentar_400(client, db):
+    user = make_user(db, "max")
+    m = _ausleihen_mit_zubehoer(client, db, user, ("Akku", "Ladegerät"), ("Akku", "Ladegerät"))
+    akku = db.query(AusleiheZubehoer).filter_by(bezeichnung="Akku").one()
+
+    r = client.post(
+        f"/api/maschinen/{m.id}/zurueckgeben",
+        json={"zustand": "ok", "kommentar": "   ",
+              "zurueckgebrachte_zubehoer_ids": [akku.id]},
+        headers=auth_header(user),
+    )
+    assert r.status_code == 400
+
+
+def test_rueckgabe_fehlend_mit_kommentar_ok(client, db):
+    user = make_user(db, "max")
+    m = _ausleihen_mit_zubehoer(client, db, user, ("Akku", "Ladegerät"), ("Akku", "Ladegerät"))
+    akku = db.query(AusleiheZubehoer).filter_by(bezeichnung="Akku").one()
+
+    r = client.post(
+        f"/api/maschinen/{m.id}/zurueckgeben",
+        json={"zustand": "ok", "kommentar": "Ladegerät noch auf Baustelle",
+              "zurueckgebrachte_zubehoer_ids": [akku.id]},
+        headers=auth_header(user),
+    )
+
+    assert r.status_code == 200
+    ausleihe = db.query(Ausleihe).one()
+    assert "Ladegerät noch auf Baustelle" in ausleihe.rueckgabe_kommentar
+    assert "Nicht zurückgegeben" in ausleihe.rueckgabe_kommentar
+
+
+def test_rueckgabe_alles_zurueck_ohne_kommentar_ok(client, db):
+    user = make_user(db, "max")
+    m = _ausleihen_mit_zubehoer(client, db, user, ("Akku", "Ladegerät"), ("Akku", "Ladegerät"))
+    ids = [z.id for z in db.query(AusleiheZubehoer).all()]
+
+    r = client.post(
+        f"/api/maschinen/{m.id}/zurueckgeben",
+        json={"zustand": "ok", "kommentar": None,
+              "zurueckgebrachte_zubehoer_ids": ids},
+        headers=auth_header(user),
+    )
+    assert r.status_code == 200  # kein fehlendes Teil -> Kommentar optional

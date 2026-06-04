@@ -164,11 +164,18 @@ def maschine_zurueckgeben(
             zeile.zurueckgebracht = True
     else:
         zurueck_ids = set(daten.zurueckgebrachte_zubehoer_ids)
-        fehlend = []
+        fehlend = [
+            zeile.bezeichnung
+            for zeile in offene_ausleihe.mitgenommenes_zubehoer
+            if zeile.id not in zurueck_ids
+        ]
+        if fehlend and not (kommentar and kommentar.strip()):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Bei fehlendem Zubehör ist ein Kommentar erforderlich.",
+            )
         for zeile in offene_ausleihe.mitgenommenes_zubehoer:
             zeile.zurueckgebracht = zeile.id in zurueck_ids
-            if not zeile.zurueckgebracht:
-                fehlend.append(zeile.bezeichnung)
         if fehlend:
             vermerk = "⚠ Nicht zurückgegeben: " + ", ".join(fehlend)
             kommentar = f"{kommentar}\n{vermerk}" if kommentar else vermerk
