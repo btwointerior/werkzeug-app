@@ -1,0 +1,140 @@
+import { api } from '../api.js';
+import { btnClasses, escapeHtml, modal, spinner, toast } from '../ui.js';
+
+export async function renderAdminBenutzer() {
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <main class="max-w-3xl mx-auto pb-24 pt-4 px-4">
+      <div class="flex items-center justify-between mb-4">
+        <h1 class="text-2xl font-bold text-slate-900">Benutzer</h1>
+        <button id="btn-neu" class="${btnClasses('primary')}">+ Neu</button>
+      </div>
+      <div id="liste">${spinner()}</div>
+    </main>`;
+
+  document.getElementById('btn-neu').onclick = () => oeffneFormular(null);
+  await lade();
+
+  async function lade() {
+    try {
+      const benutzer = await api.get('/api/admin/benutzer');
+      const liste = document.getElementById('liste');
+      liste.innerHTML = benutzer.map((b) => `
+        <div class="bg-white border border-slate-200 rounded-lg p-3 mb-2 flex items-center justify-between gap-3">
+          <div class="min-w-0">
+            <div class="font-medium text-slate-900 truncate">${escapeHtml(b.voller_name)}</div>
+            <div class="text-sm text-slate-500 truncate">
+              ${escapeHtml(b.benutzername)} · ${escapeHtml(b.rolle)}${b.aktiv ? '' : ' · <span class="text-rose-600 font-medium">gesperrt</span>'}
+            </div>
+          </div>
+          <button data-id="${b.id}" class="${btnClasses('secondary')} text-sm flex-shrink-0">Bearbeiten</button>
+        </div>`).join('');
+      liste.querySelectorAll('[data-id]').forEach((btn) => {
+        btn.onclick = () => oeffneFormular(benutzer.find((x) => x.id === +btn.dataset.id));
+      });
+    } catch (err) {
+      document.getElementById('liste').innerHTML =
+        `<div class="text-rose-600 p-4">${escapeHtml(err.detail)}</div>`;
+    }
+  }
+
+  async function oeffneFormular(bestand) {
+    const istNeu = !bestand;
+    const body = document.createElement('div');
+    body.innerHTML = `
+      <div class="space-y-3 text-sm">
+        ${istNeu ? `
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">Benutzername *</label>
+            <input id="bu-username" type="text"
+                   class="w-full border border-slate-300 rounded-lg px-3 py-2">
+          </div>
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">Passwort *</label>
+            <input id="bu-pw" type="password"
+                   class="w-full border border-slate-300 rounded-lg px-3 py-2">
+          </div>` : ''}
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">Vorname *</label>
+          <input id="bu-vorname" type="text" value="${escapeHtml(bestand?.vorname || '')}"
+                 class="w-full border border-slate-300 rounded-lg px-3 py-2">
+        </div>
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">Nachname *</label>
+          <input id="bu-nachname" type="text" value="${escapeHtml(bestand?.nachname || '')}"
+                 class="w-full border border-slate-300 rounded-lg px-3 py-2">
+        </div>
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">E-Mail (optional)</label>
+          <input id="bu-email" type="email" value="${escapeHtml(bestand?.email || '')}"
+                 class="w-full border border-slate-300 rounded-lg px-3 py-2">
+        </div>
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">Rolle</label>
+          <select id="bu-rolle" class="w-full border border-slate-300 rounded-lg px-3 py-2">
+            <option value="mitarbeiter" ${bestand?.rolle === 'mitarbeiter' ? 'selected' : ''}>Mitarbeiter</option>
+            <option value="admin"       ${bestand?.rolle === 'admin'       ? 'selected' : ''}>Admin</option>
+          </select>
+        </div>
+        ${!istNeu ? `
+          <div>
+            <label class="flex items-center gap-2">
+              <input id="bu-aktiv" type="checkbox" ${bestand.aktiv ? 'checked' : ''} class="w-5 h-5">
+              <span>Aktiv (Häkchen entfernen = sperren)</span>
+            </label>
+          </div>
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">
+              Neues Passwort (leer lassen = unverändert)
+            </label>
+            <input id="bu-pw-neu" type="password"
+                   class="w-full border border-slate-300 rounded-lg px-3 py-2">
+          </div>` : ''}
+      </div>`;
+
+    const res = await modal({
+      titel: istNeu ? 'Neuer Benutzer' : `Bearbeiten: ${bestand.benutzername}`,
+      body,
+      buttons: [
+        { label: 'Speichern',  variant: 'primary',   value: 'save' },
+        { label: 'Abbrechen',  variant: 'secondary', value: null },
+      ],
+    });
+    if (res !== 'save') return;
+
+    try {
+      if (istNeu) {
+        const benutzername = body.querySelector('#bu-username').value.trim();
+        const passwort     = body.querySelector('#bu-pw').value;
+        if (!benutzername || !passwort) {
+          toast('Benutzername und Passwort sind Pflicht.', 'error');
+          return;
+        }
+        await api.post('/api/admin/benutzer', {
+          benutzername,
+          passwort,
+          vorname:  body.querySelector('#bu-vorname').value.trim(),
+          nachname: body.querySelector('#bu-nachname').value.trim(),
+          email:    body.querySelector('#bu-email').value.trim() || null,
+          rolle:    body.querySelector('#bu-rolle').value,
+        });
+        toast('Benutzer angelegt.', 'success');
+      } else {
+        const update = {
+          vorname:  body.querySelector('#bu-vorname').value.trim(),
+          nachname: body.querySelector('#bu-nachname').value.trim(),
+          email:    body.querySelector('#bu-email').value.trim() || null,
+          rolle:    body.querySelector('#bu-rolle').value,
+          aktiv:    body.querySelector('#bu-aktiv').checked,
+        };
+        const pw = body.querySelector('#bu-pw-neu').value;
+        if (pw) update.neues_passwort = pw;
+        await api.put(`/api/admin/benutzer/${bestand.id}`, update);
+        toast('Benutzer aktualisiert.', 'success');
+      }
+      lade();
+    } catch (err) {
+      toast(err.detail || 'Speichern fehlgeschlagen.', 'error');
+    }
+  }
+}

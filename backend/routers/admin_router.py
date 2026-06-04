@@ -1,0 +1,521 @@
+"""Admin-Endpunkte: Maschinen-/Benutzer-Verwaltung, Uploads, QR-Codes, Statistiken."""
+
+import io
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Optional
+
+from fastapi import (
+    APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status,
+)
+from PIL import Image, UnidentifiedImageError
+from sqlalchemy import func, or_
+from sqlalchemy.orm import Session
+
+from backend import qr
+from backend.config import settings
+from backend.dependencies import require_admin
+from backend.models import (
+    Ausleihe,
+    Benutzer,
+    Maschine,
+    MaschinenStatus,
+    Zubehoer,
+    get_db,
+)
+from backend.schemas import (
+    AusleiheHistorieOut,
+    BenutzerCreate,
+    BenutzerKurz,
+    BenutzerOut,
+    BenutzerUpdate,
+    MaschineCreate,
+    MaschineKurz,
+    MaschineOut,
+    MaschineUpdate,
+    SammeldruckRequest,
+    StatistikenOut,
+    TopMaschineEintrag,
+    UeberfaelligeAusleiheEintrag,
+)
+from backend.upload_urls import maschine_zu_out
+
+router = APIRouter(
+    prefix="/api/admin",
+    tags=["Admin"],
+    dependencies=[Depends(require_admin)],
+)
+
+
+def _now_naive() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _hole_maschine(db: Session, maschine_id: int) -> Maschine:
+    m = db.query(Maschine).filter(Maschine.id == maschine_id).first()
+    if m is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Maschine nicht gefunden."
+        )
+    return m
+
+
+def _loesche_datei(name: Optional[str]) -> None:
+    if not name:
+        return
+    p = settings.UPLOAD_DIR / Path(name).name
+    if p.is_file():
+        try:
+            p.unlink()
+        except OSError:
+            pass  # nicht kritisch — Datei bleibt verwaist, Upload geht weiter
+
+
+# ============================================================
+#  Maschinen
+# ============================================================
+
+@router.get("/maschinen", response_model=list[MaschineOut])
+def maschinen_liste(
+    status_filter: Optional[MaschinenStatus] = Query(None, alias="status"),
+    suche: Optional[str] = Query(None, description="Suche in Name, Code, Seriennummer"),
+    db: Session = Depends(get_db),
+    current_user: Benutzer = Depends(require_admin),
+) -> list[MaschineOut]:
+    """Listet alle Maschinen, optional gefiltert nach Status und Suchbegriff."""
+    query = db.query(Maschine)
+    if status_filter is not None:
+        query = query.filter(Maschine.status == status_filter)
+    if suche:
+        muster = f"%{suche}%"
+        query = query.filter(
+            or_(
+                Maschine.name.ilike(muster),
+                Maschine.maschinen_code.ilike(muster),
+                Maschine.seriennummer.ilike(muster),
+            )
+        )
+    return [maschine_zu_out(m, current_user.id)
+            for m in query.order_by(Maschine.maschinen_code).all()]
+
+
+@router.post(
+    "/maschinen", response_model=MaschineOut, status_code=status.HTTP_201_CREATED,
+)
+def maschine_anlegen(
+    daten: MaschineCreate,
+    db: Session = Depends(get_db),
+    current_user: Benutzer = Depends(require_admin),
+) -> MaschineOut:
+    """Legt eine neue Maschine an, inkl. Zubehör.
+
+    Wirft 400, wenn der `maschinen_code` bereits vergeben ist.
+    """
+    if (
+        db.query(Maschine)
+        .filter(Maschine.maschinen_code == daten.maschinen_code)
+        .first()
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Maschinen-Code '{daten.maschinen_code}' ist bereits vergeben.",
+        )
+
+    maschine = Maschine(
+        maschinen_code=daten.maschinen_code,
+        name=daten.name,
+        platznummer=daten.platznummer,
+        hersteller=daten.hersteller,
+        seriennummer=daten.seriennummer,
+        beschreibung=daten.beschreibung,
+        foto_pfad=daten.foto_pfad,
+        anleitung_pfad=daten.anleitung_pfad,
+        status=daten.status,
+    )
+    for z in daten.zubehoer:
+        maschine.zubehoer_liste.append(Zubehoer(bezeichnung=z.bezeichnung))
+    db.add(maschine)
+    db.commit()
+    db.refresh(maschine)
+    return maschine_zu_out(maschine, current_user.id)
+
+
+@router.put("/maschinen/{maschine_id}", response_model=MaschineOut)
+def maschine_bearbeiten(
+    maschine_id: int,
+    daten: MaschineUpdate,
+    db: Session = Depends(get_db),
+    current_user: Benutzer = Depends(require_admin),
+) -> MaschineOut:
+    """Bearbeitet eine Maschine. Alle Felder optional.
+
+    Wird `zubehoer` mitgesendet, wird die komplette Zubehörliste ersetzt.
+    """
+    maschine = _hole_maschine(db, maschine_id)
+    update_data = daten.model_dump(exclude_unset=True)
+
+    if "zubehoer" in update_data:
+        maschine.zubehoer_liste.clear()
+        for z in daten.zubehoer or []:
+            maschine.zubehoer_liste.append(Zubehoer(bezeichnung=z.bezeichnung))
+        update_data.pop("zubehoer")
+
+    for feld, wert in update_data.items():
+        setattr(maschine, feld, wert)
+
+    db.commit()
+    db.refresh(maschine)
+    return maschine_zu_out(maschine, current_user.id)
+
+
+@router.delete("/maschinen/{maschine_id}", status_code=status.HTTP_204_NO_CONTENT)
+def maschine_loeschen(maschine_id: int, db: Session = Depends(get_db)) -> None:
+    """Löscht eine Maschine inkl. Foto und Anleitung.
+
+    Verweigert, wenn eine offene Ausleihe existiert.
+    """
+    maschine = _hole_maschine(db, maschine_id)
+    if maschine.aktuelle_ausleihe is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Maschine hat eine offene Ausleihe und kann nicht gelöscht werden.",
+        )
+    _loesche_datei(maschine.foto_pfad)
+    _loesche_datei(maschine.anleitung_pfad)
+    db.delete(maschine)
+    db.commit()
+
+
+@router.post("/maschinen/{maschine_id}/freigeben", response_model=MaschineOut)
+def maschine_freigeben(
+    maschine_id: int,
+    db: Session = Depends(get_db),
+    current_user: Benutzer = Depends(require_admin),
+) -> MaschineOut:
+    """Hebt den Status 'defekt' oder 'wartung' auf und setzt die Maschine auf 'verfuegbar'."""
+    maschine = _hole_maschine(db, maschine_id)
+    if maschine.status not in (MaschinenStatus.DEFEKT, MaschinenStatus.WARTUNG):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Maschine ist nicht gesperrt.",
+        )
+    maschine.status = MaschinenStatus.VERFUEGBAR
+    db.commit()
+    db.refresh(maschine)
+    return maschine_zu_out(maschine, current_user.id)
+
+
+@router.get(
+    "/maschinen/{maschine_id}/historie",
+    response_model=list[AusleiheHistorieOut],
+)
+def maschine_historie(
+    maschine_id: int, db: Session = Depends(get_db)
+) -> list[Ausleihe]:
+    """Liefert die komplette Ausleih-Historie einer Maschine (neueste zuerst)."""
+    _hole_maschine(db, maschine_id)
+    return (
+        db.query(Ausleihe)
+        .filter(Ausleihe.maschine_id == maschine_id)
+        .order_by(Ausleihe.ausleih_zeitpunkt.desc())
+        .all()
+    )
+
+
+# ============================================================
+#  Foto-Upload
+# ============================================================
+
+@router.post("/maschinen/{maschine_id}/foto", response_model=MaschineOut)
+async def foto_hochladen(
+    maschine_id: int,
+    datei: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: Benutzer = Depends(require_admin),
+) -> MaschineOut:
+    """Lädt ein Foto hoch (JPG/PNG/WebP, max 10 MB).
+
+    Das Foto wird auf max. 1600 px (längste Seite) verkleinert und als JPEG
+    gespeichert. Eine ggf. vorhandene alte Datei wird ersetzt.
+    """
+    maschine = _hole_maschine(db, maschine_id)
+
+    if datei.content_type not in settings.ERLAUBTE_BILD_TYPEN:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Nur JPG, PNG oder WebP erlaubt.",
+        )
+
+    inhalt = await datei.read()
+    if len(inhalt) > settings.MAX_UPLOAD_SIZE:
+        mb = settings.MAX_UPLOAD_SIZE // (1024 * 1024)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Datei zu groß (max {mb} MB).",
+        )
+
+    try:
+        Image.open(io.BytesIO(inhalt)).verify()
+        img = Image.open(io.BytesIO(inhalt))
+    except (UnidentifiedImageError, OSError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Datei ist kein gültiges Bild.",
+        )
+
+    img.thumbnail((1600, 1600))
+    if img.mode != "RGB":
+        img = img.convert("RGB")
+
+    neuer_name = f"maschine_{maschine_id}_foto.jpg"
+    ziel = settings.UPLOAD_DIR / neuer_name
+    img.save(ziel, "JPEG", quality=85, optimize=True)
+
+    # Falls die alte Datei einen anderen Namen hatte (z.B. .png früher), separat löschen.
+    if maschine.foto_pfad and maschine.foto_pfad != neuer_name:
+        _loesche_datei(maschine.foto_pfad)
+
+    maschine.foto_pfad = neuer_name
+    db.commit()
+    db.refresh(maschine)
+    return maschine_zu_out(maschine, current_user.id)
+
+
+@router.delete(
+    "/maschinen/{maschine_id}/foto",
+    response_model=MaschineOut,
+)
+def foto_entfernen(
+    maschine_id: int,
+    db: Session = Depends(get_db),
+    current_user: Benutzer = Depends(require_admin),
+) -> MaschineOut:
+    """Entfernt das Foto der Maschine (Datei + DB-Pfad)."""
+    maschine = _hole_maschine(db, maschine_id)
+    _loesche_datei(maschine.foto_pfad)
+    maschine.foto_pfad = None
+    db.commit()
+    db.refresh(maschine)
+    return maschine_zu_out(maschine, current_user.id)
+
+
+# ============================================================
+#  Anleitung-Upload (PDF)
+# ============================================================
+
+@router.post("/maschinen/{maschine_id}/anleitung", response_model=MaschineOut)
+async def anleitung_hochladen(
+    maschine_id: int,
+    datei: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: Benutzer = Depends(require_admin),
+) -> MaschineOut:
+    """Lädt eine Betriebsanleitung (PDF, max 10 MB) hoch und ersetzt die alte."""
+    maschine = _hole_maschine(db, maschine_id)
+
+    if datei.content_type != settings.ERLAUBTER_PDF_TYP:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Nur PDF-Dateien erlaubt.",
+        )
+
+    inhalt = await datei.read()
+    if len(inhalt) > settings.MAX_UPLOAD_SIZE:
+        mb = settings.MAX_UPLOAD_SIZE // (1024 * 1024)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Datei zu groß (max {mb} MB).",
+        )
+
+    # Magic-Bytes-Check: PDFs starten mit "%PDF-"
+    if not inhalt[:5] == b"%PDF-":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Datei ist kein gültiges PDF.",
+        )
+
+    neuer_name = f"maschine_{maschine_id}_anleitung.pdf"
+    ziel = settings.UPLOAD_DIR / neuer_name
+    ziel.write_bytes(inhalt)
+
+    if maschine.anleitung_pfad and maschine.anleitung_pfad != neuer_name:
+        _loesche_datei(maschine.anleitung_pfad)
+
+    maschine.anleitung_pfad = neuer_name
+    db.commit()
+    db.refresh(maschine)
+    return maschine_zu_out(maschine, current_user.id)
+
+
+@router.delete("/maschinen/{maschine_id}/anleitung", response_model=MaschineOut)
+def anleitung_entfernen(
+    maschine_id: int,
+    db: Session = Depends(get_db),
+    current_user: Benutzer = Depends(require_admin),
+) -> MaschineOut:
+    """Entfernt die Betriebsanleitung (Datei + DB-Pfad)."""
+    maschine = _hole_maschine(db, maschine_id)
+    _loesche_datei(maschine.anleitung_pfad)
+    maschine.anleitung_pfad = None
+    db.commit()
+    db.refresh(maschine)
+    return maschine_zu_out(maschine, current_user.id)
+
+
+# ============================================================
+#  QR-Codes
+# ============================================================
+
+@router.get("/maschinen/{maschine_id}/qr-code")
+def qr_einzel(maschine_id: int, db: Session = Depends(get_db)) -> Response:
+    """Liefert ein A6-PDF mit dem QR-Etikett der Maschine (Inline-Ansicht im Browser)."""
+    maschine = _hole_maschine(db, maschine_id)
+    pdf = qr.einzel_pdf(maschine)
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition":
+                f'inline; filename="qr_{maschine.maschinen_code}.pdf"',
+        },
+    )
+
+
+@router.post("/qr-codes/sammeldruck")
+def qr_sammel(
+    daten: SammeldruckRequest, db: Session = Depends(get_db)
+) -> Response:
+    """A4-PDF mit bis zu 4 Etiketten pro Seite (2×2) inkl. Schnittlinien."""
+    eindeutige_ids = list(dict.fromkeys(daten.maschine_ids))  # behalte Reihenfolge
+    maschinen = (
+        db.query(Maschine).filter(Maschine.id.in_(eindeutige_ids)).all()
+    )
+    if len(maschinen) != len(eindeutige_ids):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Eine oder mehrere Maschinen-IDs existieren nicht.",
+        )
+    by_id = {m.id: m for m in maschinen}
+    sortiert = [by_id[i] for i in eindeutige_ids]
+
+    pdf = qr.sammel_pdf(sortiert)
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": 'inline; filename="qr_sammeldruck.pdf"',
+        },
+    )
+
+
+# ============================================================
+#  Benutzer
+# ============================================================
+
+@router.get("/benutzer", response_model=list[BenutzerOut])
+def benutzer_liste(db: Session = Depends(get_db)) -> list[Benutzer]:
+    """Listet alle Benutzer (aktiv und gesperrt)."""
+    return db.query(Benutzer).order_by(Benutzer.benutzername).all()
+
+
+@router.post(
+    "/benutzer", response_model=BenutzerOut, status_code=status.HTTP_201_CREATED,
+)
+def benutzer_anlegen(
+    daten: BenutzerCreate, db: Session = Depends(get_db)
+) -> Benutzer:
+    """Legt einen neuen Benutzer an. 400 wenn der Benutzername bereits vergeben ist."""
+    if (
+        db.query(Benutzer)
+        .filter(Benutzer.benutzername == daten.benutzername)
+        .first()
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Benutzername '{daten.benutzername}' ist bereits vergeben.",
+        )
+    benutzer = Benutzer(
+        benutzername=daten.benutzername,
+        vorname=daten.vorname,
+        nachname=daten.nachname,
+        rolle=daten.rolle,
+        email=daten.email,
+    )
+    benutzer.setze_passwort(daten.passwort)
+    db.add(benutzer)
+    db.commit()
+    db.refresh(benutzer)
+    return benutzer
+
+
+@router.put("/benutzer/{benutzer_id}", response_model=BenutzerOut)
+def benutzer_bearbeiten(
+    benutzer_id: int,
+    daten: BenutzerUpdate,
+    db: Session = Depends(get_db),
+) -> Benutzer:
+    """Bearbeitet einen Benutzer (auch zum Sperren via `aktiv=false` oder Passwort-Reset)."""
+    benutzer = db.query(Benutzer).filter(Benutzer.id == benutzer_id).first()
+    if benutzer is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Benutzer nicht gefunden."
+        )
+    update_data = daten.model_dump(exclude_unset=True)
+    neues_passwort = update_data.pop("neues_passwort", None)
+    for feld, wert in update_data.items():
+        setattr(benutzer, feld, wert)
+    if neues_passwort:
+        benutzer.setze_passwort(neues_passwort)
+    db.commit()
+    db.refresh(benutzer)
+    return benutzer
+
+
+# ============================================================
+#  Statistiken
+# ============================================================
+
+@router.get("/statistiken", response_model=StatistikenOut)
+def statistiken(db: Session = Depends(get_db)) -> StatistikenOut:
+    """Top-10 meistgenutzte Maschinen + offene Ausleihen, die älter als 7 Tage sind."""
+    top = (
+        db.query(Maschine, func.count(Ausleihe.id).label("anz"))
+        .outerjoin(Ausleihe, Ausleihe.maschine_id == Maschine.id)
+        .group_by(Maschine.id)
+        .order_by(func.count(Ausleihe.id).desc(), Maschine.maschinen_code)
+        .limit(10)
+        .all()
+    )
+    top_maschinen = [
+        TopMaschineEintrag(
+            id=m.id,
+            maschinen_code=m.maschinen_code,
+            name=m.name,
+            anzahl_ausleihen=int(anz),
+        )
+        for m, anz in top
+    ]
+
+    cutoff = _now_naive() - timedelta(days=7)
+    offene = (
+        db.query(Ausleihe)
+        .filter(
+            Ausleihe.rueckgabe_zeitpunkt.is_(None),
+            Ausleihe.ausleih_zeitpunkt < cutoff,
+        )
+        .order_by(Ausleihe.ausleih_zeitpunkt.asc())
+        .all()
+    )
+    ueberfaellige = [
+        UeberfaelligeAusleiheEintrag(
+            id=a.id,
+            maschine=MaschineKurz.model_validate(a.maschine),
+            benutzer=BenutzerKurz.model_validate(a.benutzer),
+            ausleih_zeitpunkt=a.ausleih_zeitpunkt,
+            dauer_tage=a.dauer_tage,
+        )
+        for a in offene
+    ]
+    return StatistikenOut(
+        top_maschinen=top_maschinen, ueberfaellige=ueberfaellige
+    )

@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtuelle Umgebung
+venv/
+.venv/
+env/
+
+# Secrets / Umgebungsvariablen
+.env
+.env.local
+
+# Datenbank
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+
+# Uploads & generierte QR-Codes (Inhalt ignorieren, Ordner behalten)
+uploads/*
+!uploads/.gitkeep
+qr_codes/*
+!qr_codes/.gitkeep
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+.uvicorn.log
