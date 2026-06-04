@@ -206,3 +206,20 @@ def test_rueckgabe_fremde_id_wird_ignoriert(client, db):
     db.refresh(akku)
     assert akku.zurueckgebracht is False  # fremde ID hat keinen Effekt
     assert "Akku" in db.query(Ausleihe).one().rueckgabe_kommentar
+
+
+def test_meine_ausleihen_zeigt_zubehoer(client, db):
+    user = make_user(db, "max")
+    m = _ausleihen_mit_zubehoer(client, db, user, ("Akku", "Ladegerät"), ("Akku",))
+
+    r = client.get("/api/maschinen/meine", headers=auth_header(user))
+
+    assert r.status_code == 200
+    eintraege = r.json()
+    assert len(eintraege) == 1
+    # Die mitgenommene Liste hängt an der Ausleihe selbst:
+    mitgenommen = eintraege[0]["mitgenommenes_zubehoer"]
+    assert len(mitgenommen) == 1
+    assert mitgenommen[0]["bezeichnung"] == "Akku"
+    assert mitgenommen[0]["zurueckgebracht"] is None
+    assert "id" in mitgenommen[0]

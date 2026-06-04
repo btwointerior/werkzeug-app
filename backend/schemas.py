@@ -62,6 +62,12 @@ class ZubehoerCreate(BaseModel):
     bezeichnung: str = Field(..., min_length=1, max_length=120)
 
 
+class AusleiheZubehoerOut(_ORM):
+    id: int
+    bezeichnung: str
+    zurueckgebracht: Optional[bool] = None
+
+
 # ============================================================
 #  Maschine
 # ============================================================
@@ -72,6 +78,7 @@ class AusleiheKurz(_ORM):
     benutzer_id: int
     benutzer: BenutzerKurz
     ausleih_zeitpunkt: datetime
+    mitgenommenes_zubehoer: list[AusleiheZubehoerOut] = []
 
 
 class MaschineKurz(_ORM):
@@ -153,6 +160,7 @@ class MeineAusleiheOut(_ORM):
     ausleih_zeitpunkt: datetime
     dauer_tage: int
     maschine: MaschineKurz
+    mitgenommenes_zubehoer: list[AusleiheZubehoerOut] = []
 
 
 class AusleiheHistorieOut(_ORM):
