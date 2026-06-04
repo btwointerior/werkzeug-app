@@ -73,10 +73,17 @@ nötig gewesen wäre.)
    um eine **Abhak-Liste des mitgenommenen Zubehörs** erweitert, alle vorab
    angehakt (Normalfall: alles kommt zurück).
 2. Mitarbeiter entfernt Haken bei Fehlendem.
-3. Beim Absenden: pro Teil `zurueckgebracht` setzen. Fehlende Teile werden
+3. **Pflicht-Kommentar bei fehlendem Zubehör (Nachtrag):** Wird weniger Zubehör
+   zurückgegeben als mitgenommen wurde (mind. ein Teil fehlt), ist das
+   Kommentar-Feld **Pflicht**. Die Rückgabe wird nur akzeptiert, wenn dort ein
+   nicht-leerer Text steht. Das Backend erzwingt das (HTTP 400 sonst), das
+   Frontend verhindert das Absenden und weist freundlich darauf hin. Kommen alle
+   Teile zurück (oder gab es kein Zubehör), bleibt der Kommentar optional.
+4. Beim Absenden: pro Teil `zurueckgebracht` setzen. Fehlende Teile werden
    **zusätzlich** als Klartext an `rueckgabe_kommentar` angehängt (z. B.
-   „⚠ Nicht zurückgegeben: Ladegerät"), damit es in der bestehenden
-   Admin-Historie ohne UI-Änderung sichtbar ist.
+   „⚠ Nicht zurückgegeben: Ladegerät"), damit es zusammen mit dem
+   Pflicht-Kommentar in der bestehenden Admin-Historie sichtbar ist. So ist der
+   Admin ohne neuen Benachrichtigungs-Mechanismus informiert.
 
 ## API
 
@@ -106,8 +113,11 @@ Neuer optionaler Request-Body:
   der Ausleihe.
 - Fehlende (`false`) werden zu einer Zeile zusammengefasst und an `kommentar`
   angehängt.
+- **Pflicht-Kommentar:** Gibt es fehlende Teile und ist `kommentar` leer/nur
+  Whitespace, antwortet das Backend mit **400** und die Rückgabe wird **nicht**
+  verbucht (Maschine bleibt ausgeliehen).
 - **Abwärtskompatibel:** fehlt das Feld (`None`), gilt alles als zurückgebracht
-  (kein Bruch bestehender Aufrufe).
+  (kein Bruch bestehender Aufrufe; ohne fehlende Teile ist kein Kommentar nötig).
 
 ## Schemas (`schemas.py`)
 
