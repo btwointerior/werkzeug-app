@@ -29,6 +29,11 @@ EXCLUDES=(
   --exclude '__pycache__/'
   --exclude '*.log'
   --exclude '*.pyc'
+  # Nur-lokale Dev-Artefakte – gehören nicht auf den Produktivserver:
+  --exclude '.pytest_cache/'
+  --exclude 'tests/'
+  --exclude 'pytest.ini'
+  --exclude 'requirements-dev.txt'
 )
 
 if [[ "${1:-}" == "--go" ]]; then

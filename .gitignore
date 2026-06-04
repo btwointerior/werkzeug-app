@@ -35,3 +35,6 @@ Thumbs.db
 # Logs
 *.log
 .uvicorn.log
+
+# pytest
+.pytest_cache/
