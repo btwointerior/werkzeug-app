@@ -1,4 +1,5 @@
 import { api } from '../api.js';
+import { state } from '../app.js';
 import { btnClasses, escapeHtml, modal, spinner, toast } from '../ui.js';
 
 export async function renderAdminBenutzer() {
@@ -92,14 +93,21 @@ export async function renderAdminBenutzer() {
           </div>` : ''}
       </div>`;
 
+    const buttons = [
+      { label: 'Speichern',  variant: 'primary',   value: 'save' },
+      { label: 'Abbrechen',  variant: 'secondary', value: null },
+    ];
+    // Löschen nur bei bestehenden Benutzern und nie für das eigene Konto.
+    if (!istNeu && bestand.id !== state.benutzer?.id) {
+      buttons.push({ label: 'Löschen', variant: 'danger', value: 'delete' });
+    }
+
     const res = await modal({
       titel: istNeu ? 'Neuer Benutzer' : `Bearbeiten: ${bestand.benutzername}`,
       body,
-      buttons: [
-        { label: 'Speichern',  variant: 'primary',   value: 'save' },
-        { label: 'Abbrechen',  variant: 'secondary', value: null },
-      ],
+      buttons,
     });
+    if (res === 'delete') { await loescheBenutzer(bestand); return; }
     if (res !== 'save') return;
 
     try {
@@ -135,6 +143,29 @@ export async function renderAdminBenutzer() {
       lade();
     } catch (err) {
       toast(err.detail || 'Speichern fehlgeschlagen.', 'error');
+    }
+  }
+
+  async function loescheBenutzer(bestand) {
+    const ok = await modal({
+      titel: 'Mitarbeiter löschen',
+      body: `<p class="text-sm text-slate-700">Mitarbeiter
+             <strong>${escapeHtml(bestand.voller_name)}</strong>
+             wirklich endgültig löschen?</p>`,
+      buttons: [
+        { label: 'Endgültig löschen', variant: 'danger',    value: 'ok' },
+        { label: 'Abbrechen',         variant: 'secondary', value: null },
+      ],
+    });
+    if (ok !== 'ok') return;
+
+    try {
+      await api.del(`/api/admin/benutzer/${bestand.id}`);
+      toast('Mitarbeiter gelöscht.', 'success');
+      lade();
+    } catch (err) {
+      // z.B. 409: "… hat Ausleih-Historie … Bitte stattdessen sperren."
+      toast(err.detail || 'Löschen fehlgeschlagen.', 'error');
     }
   }
 }

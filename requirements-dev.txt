@@ -1,0 +1,4 @@
+# Nur für lokale Tests, NICHT auf dem Server nötig.
+-r requirements.lock.txt
+pytest
+httpx

@@ -33,9 +33,13 @@ der Reihe nach:
 |---|---------|------|---------|
 | 1 | Benutzer existiert nicht | 404 | „Benutzer nicht gefunden.“ |
 | 2 | Benutzer == eingeloggter Admin (Selbst-Löschen) | 400 | „Sie können sich nicht selbst löschen.“ |
-| 3 | Benutzer ist der letzte aktive Admin | 400 | „Der letzte Admin kann nicht gelöscht werden.“ |
-| 4 | Benutzer hat ≥ 1 Ausleihe | 409 | „Mitarbeiter hat Ausleih-Historie und kann nicht gelöscht werden. Bitte stattdessen sperren.“ |
-| 5 | sonst | 204 | (löschen + commit) |
+| 3 | Benutzer hat ≥ 1 Ausleihe | 409 | „Mitarbeiter hat Ausleih-Historie und kann nicht gelöscht werden. Bitte stattdessen sperren.“ |
+| 4 | sonst | 204 | (löschen + commit) |
+
+**Hinweis „letzter Admin“:** Eine eigene Prüfung ist nicht nötig. Da das
+Selbst-Löschen verboten ist und der ausführende Admin selbst immer ein aktiver
+Admin ist, kann durch ein Löschen nie ein Zustand mit null Admins entstehen –
+der Schutz ist dadurch automatisch gegeben.
 
 ## Frontend
 
@@ -53,10 +57,9 @@ eingeführt. Abgedeckte Fälle:
 
 1. Löschen eines Mitarbeiters ohne Ausleihen → 204, Benutzer ist weg.
 2. Selbst-Löschen → 400.
-3. Letzter Admin → 400.
-4. Mitarbeiter mit Ausleihe → 409, Benutzer bleibt erhalten.
-5. Nicht vorhandener Benutzer → 404.
-6. Nicht-Admin ruft Endpoint → 403 (vorhandenes Auth-Verhalten).
+3. Mitarbeiter mit Ausleihe → 409, Benutzer bleibt erhalten.
+4. Nicht vorhandener Benutzer → 404.
+5. Nicht-Admin ruft Endpoint → 403 (vorhandenes Auth-Verhalten).
 
 ## Nicht im Scope
 

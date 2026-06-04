@@ -471,6 +471,42 @@ def benutzer_bearbeiten(
     return benutzer
 
 
+@router.delete("/benutzer/{benutzer_id}", status_code=status.HTTP_204_NO_CONTENT)
+def benutzer_loeschen(
+    benutzer_id: int,
+    db: Session = Depends(get_db),
+    current_user: Benutzer = Depends(require_admin),
+) -> None:
+    """Löscht einen Mitarbeiter endgültig.
+
+    Nur erlaubt, wenn er keine Ausleih-Historie hat – sonst 409 (stattdessen
+    sperren), damit die Historie lückenlos bleibt. Selbst-Löschen ist verboten.
+    """
+    benutzer = db.query(Benutzer).filter(Benutzer.id == benutzer_id).first()
+    if benutzer is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Benutzer nicht gefunden."
+        )
+    if benutzer.id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Sie können sich nicht selbst löschen.",
+        )
+    hat_ausleihen = (
+        db.query(Ausleihe).filter(Ausleihe.benutzer_id == benutzer.id).first()
+    )
+    if hat_ausleihen is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Mitarbeiter hat Ausleih-Historie und kann nicht gelöscht werden. "
+                "Bitte stattdessen sperren."
+            ),
+        )
+    db.delete(benutzer)
+    db.commit()
+
+
 # ============================================================
 #  Statistiken
 # ============================================================
