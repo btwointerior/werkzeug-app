@@ -9,7 +9,7 @@
 import { api } from '../api.js';
 import { state } from '../app.js';
 import {
-  btnClasses, escapeHtml, modal, spinner, statusBadge, toast, zeitseit,
+  btnClasses, confirmDialog, escapeHtml, modal, spinner, statusBadge, toast, zeitseit,
 } from '../ui.js';
 
 export async function renderMaschine(code) {
@@ -181,8 +181,15 @@ export async function renderMaschine(code) {
   }
 
   async function ausleihenKlick() {
+    let bezeichnungen = [];
+    if (maschine.zubehoer_liste.length) {
+      const auswahl = await ausleihZubehoerModal(maschine.zubehoer_liste);
+      if (auswahl === null) return;  // abgebrochen
+      bezeichnungen = auswahl;
+    }
     try {
-      maschine = await api.post(`/api/maschinen/${maschine.id}/ausleihen`);
+      maschine = await api.post(`/api/maschinen/${maschine.id}/ausleihen`,
+        { zubehoer_bezeichnungen: bezeichnungen });
       toast('Maschine erfolgreich ausgeliehen.', 'success');
       zeichne();
     } catch (err) {
@@ -211,6 +218,41 @@ export async function renderMaschine(code) {
       toast(err.detail || 'Fehler bei der Rückgabe.', 'error');
     }
   }
+}
+
+async function ausleihZubehoerModal(zubehoerListe) {
+  const body = document.createElement('div');
+  body.innerHTML = `
+    <p class="text-sm text-slate-600 mb-3">Welches Zubehör nimmst du mit? Hake an, was du mitnimmst.</p>
+    <div class="space-y-2">
+      ${zubehoerListe.map((z) => `
+        <label class="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+          <input type="checkbox" value="${escapeHtml(z.bezeichnung)}" class="w-5 h-5">
+          <span class="font-medium">${escapeHtml(z.bezeichnung)}</span>
+        </label>`).join('')}
+    </div>`;
+
+  const result = await modal({
+    titel: 'Zubehör mitnehmen',
+    body,
+    buttons: [
+      { label: 'Ausleihen', variant: 'success', value: 'go' },
+      { label: 'Abbrechen', variant: 'secondary', value: null },
+    ],
+  });
+  if (result !== 'go') return null;
+
+  const checked = [...body.querySelectorAll('input[type=checkbox]:checked')]
+    .map((c) => c.value);
+
+  if (checked.length === 0) {
+    const ok = await confirmDialog('Wirklich ohne Zubehör ausleihen?', {
+      titel: 'Ohne Zubehör?',
+      okLabel: 'Ja, ohne Zubehör',
+    });
+    if (!ok) return null;
+  }
+  return checked;
 }
 
 async function rueckgabeModal() {
