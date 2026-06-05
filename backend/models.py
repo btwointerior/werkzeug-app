@@ -227,6 +227,17 @@ class Ausleihe(Base):
         cascade="all, delete-orphan",
     )
 
+    # Empfänger: NULL = für den ausleihenden Mitarbeiter selbst;
+    # gesetzt = für ein externes Montageteam.
+    externes_team_id = Column(
+        Integer, ForeignKey("externe_teams.id"), nullable=True, index=True
+    )
+    externes_team = relationship("ExternesTeam", back_populates="ausleihen")
+
+    @property
+    def externes_team_name(self) -> str | None:
+        return self.externes_team.name if self.externes_team else None
+
     @property
     def ist_offen(self) -> bool:
         return self.rueckgabe_zeitpunkt is None
@@ -269,6 +280,27 @@ class AusleiheZubehoer(Base):
 
     def __repr__(self) -> str:
         return f"<AusleiheZubehoer '{self.bezeichnung}'>"
+
+
+# --------------------------------------------------------------------
+#  ExternesTeam - externe Montageteams (Empfänger einer Ausleihe)
+# --------------------------------------------------------------------
+
+class ExternesTeam(Base):
+    """Externes Montageteam, für das eine Maschine ausgeliehen werden kann.
+
+    Wird beim Ausleihen automatisch angelegt (find-or-create), sobald ein
+    neuer Team-Name verwendet wird. Der eindeutige Name speist das Dropdown.
+    """
+    __tablename__ = "externe_teams"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(120), nullable=False, unique=True, index=True)
+
+    ausleihen = relationship("Ausleihe", back_populates="externes_team")
+
+    def __repr__(self) -> str:
+        return f"<ExternesTeam '{self.name}'>"
 
 
 # --------------------------------------------------------------------
