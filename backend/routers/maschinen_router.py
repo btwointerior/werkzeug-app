@@ -10,6 +10,7 @@ from backend.models import (
     Ausleihe,
     AusleiheZubehoer,
     Benutzer,
+    ExternesTeam,
     Maschine,
     MaschinenStatus,
     Rolle,
@@ -101,10 +102,22 @@ def maschine_ausleihen(
             detail=f"Unbekanntes Zubehör: {', '.join(ungueltig)}",
         )
 
+    team_name = ((daten.externes_team if daten else None) or "").strip()
+    externes_team = None
+    if team_name:
+        externes_team = (
+            db.query(ExternesTeam).filter(ExternesTeam.name == team_name).first()
+        )
+        if externes_team is None:
+            externes_team = ExternesTeam(name=team_name)
+            db.add(externes_team)
+            db.flush()  # vergibt die id für die FK
+
     neue_ausleihe = Ausleihe(
         maschine_id=maschine.id,
         benutzer_id=current_user.id,
         ausleih_zeitpunkt=datetime.now(timezone.utc),
+        externes_team_id=externes_team.id if externes_team else None,
     )
     for bezeichnung in bezeichnungen:
         neue_ausleihe.mitgenommenes_zubehoer.append(

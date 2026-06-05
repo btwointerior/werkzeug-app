@@ -142,8 +142,10 @@ class MaschineUpdate(BaseModel):
 
 
 class AusleihenRequest(BaseModel):
-    """Beim Ausleihen mitgenommenes Zubehör (Bezeichnungen aus der Maschinen-Liste)."""
+    """Beim Ausleihen mitgenommenes Zubehör + optionaler externer Empfänger."""
     zubehoer_bezeichnungen: list[str] = []
+    # None/leer = für den ausleihenden Mitarbeiter; sonst Name des externen Teams.
+    externes_team: Optional[str] = None
 
 
 class ZurueckgabeRequest(BaseModel):

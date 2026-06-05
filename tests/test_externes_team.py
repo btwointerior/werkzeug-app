@@ -43,3 +43,70 @@ def test_modell_ohne_team_ist_none(db):
 
     assert ausleihe.externes_team_id is None
     assert ausleihe.externes_team_name is None
+
+
+def test_ausleihen_fuer_mich_kein_team(client, db):
+    user = make_user(db, "max")
+    m = _maschine(db)
+
+    r = client.post(f"/api/maschinen/{m.id}/ausleihen",
+                    json={}, headers=auth_header(user))
+
+    assert r.status_code == 200
+    assert db.query(ExternesTeam).count() == 0
+    assert db.query(Ausleihe).one().externes_team_id is None
+
+
+def test_ausleihen_fuer_team_legt_team_an(client, db):
+    user = make_user(db, "max")
+    m = _maschine(db)
+
+    r = client.post(f"/api/maschinen/{m.id}/ausleihen",
+                    json={"externes_team": "Team Müller"},
+                    headers=auth_header(user))
+
+    assert r.status_code == 200
+    team = db.query(ExternesTeam).one()
+    assert team.name == "Team Müller"
+    assert db.query(Ausleihe).one().externes_team_id == team.id
+
+
+def test_ausleihen_gleicher_team_name_kein_duplikat(client, db):
+    user = make_user(db, "max")
+    m1 = _maschine(db, code="M-0001")
+    m2 = _maschine(db, code="M-0002")
+
+    for m in (m1, m2):
+        r = client.post(f"/api/maschinen/{m.id}/ausleihen",
+                        json={"externes_team": "Team Müller"},
+                        headers=auth_header(user))
+        assert r.status_code == 200
+
+    assert db.query(ExternesTeam).count() == 1
+    team_ids = {a.externes_team_id for a in db.query(Ausleihe).all()}
+    assert len(team_ids) == 1 and None not in team_ids
+
+
+def test_ausleihen_team_whitespace_ist_fuer_mich(client, db):
+    user = make_user(db, "max")
+    m = _maschine(db)
+
+    r = client.post(f"/api/maschinen/{m.id}/ausleihen",
+                    json={"externes_team": "   "},
+                    headers=auth_header(user))
+
+    assert r.status_code == 200
+    assert db.query(ExternesTeam).count() == 0
+    assert db.query(Ausleihe).one().externes_team_id is None
+
+
+def test_ausleihen_ohne_feld_abwaertskompatibel(client, db):
+    user = make_user(db, "max")
+    m = _maschine(db)
+
+    r = client.post(f"/api/maschinen/{m.id}/ausleihen",
+                    json={"zubehoer_bezeichnungen": []},
+                    headers=auth_header(user))
+
+    assert r.status_code == 200
+    assert db.query(Ausleihe).one().externes_team_id is None
