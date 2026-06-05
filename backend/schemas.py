@@ -175,6 +175,7 @@ class AusleiheHistorieOut(_ORM):
     rueckgabe_kommentar: Optional[str] = None
     dauer_tage: int
     ist_offen: bool
+    externes_team_name: Optional[str] = None
 
 
 # ============================================================

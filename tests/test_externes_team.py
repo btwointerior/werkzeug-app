@@ -134,3 +134,33 @@ def test_externe_teams_leer(client, db):
 
     assert r.status_code == 200
     assert r.json() == []
+
+
+def test_historie_enthaelt_externes_team_name(client, db):
+    admin = make_user(db, "chef", rolle=Rolle.ADMIN)
+    user = make_user(db, "max")
+    m = _maschine(db)
+    client.post(f"/api/maschinen/{m.id}/ausleihen",
+                json={"externes_team": "Team Müller"}, headers=auth_header(user))
+
+    r = client.get(f"/api/admin/maschinen/{m.id}/historie",
+                   headers=auth_header(admin))
+
+    assert r.status_code == 200
+    eintraege = r.json()
+    assert len(eintraege) == 1
+    assert eintraege[0]["externes_team_name"] == "Team Müller"
+
+
+def test_historie_ohne_team_ist_null(client, db):
+    admin = make_user(db, "chef", rolle=Rolle.ADMIN)
+    user = make_user(db, "max")
+    m = _maschine(db)
+    client.post(f"/api/maschinen/{m.id}/ausleihen",
+                json={}, headers=auth_header(user))
+
+    r = client.get(f"/api/admin/maschinen/{m.id}/historie",
+                   headers=auth_header(admin))
+
+    assert r.status_code == 200
+    assert r.json()[0]["externes_team_name"] is None
