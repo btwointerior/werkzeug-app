@@ -45,6 +45,16 @@ def meine_ausleihen(
     )
 
 
+@router.get("/externe-teams", response_model=list[str])
+def externe_teams(
+    current_user: Benutzer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[str]:
+    """Liefert die bekannten externen Montageteam-Namen (alphabetisch) fürs Dropdown."""
+    zeilen = db.query(ExternesTeam.name).order_by(ExternesTeam.name).all()
+    return [z[0] for z in zeilen]
+
+
 @router.get("/by-code/{maschinen_code}", response_model=MaschineOut)
 def maschine_per_code(
     maschinen_code: str,

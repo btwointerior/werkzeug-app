@@ -110,3 +110,27 @@ def test_ausleihen_ohne_feld_abwaertskompatibel(client, db):
 
     assert r.status_code == 200
     assert db.query(Ausleihe).one().externes_team_id is None
+
+
+def test_externe_teams_liste_distinct_sortiert(client, db):
+    user = make_user(db, "max")
+    m1 = _maschine(db, code="M-0001")
+    m2 = _maschine(db, code="M-0002")
+    client.post(f"/api/maschinen/{m1.id}/ausleihen",
+                json={"externes_team": "Zeta-Bau"}, headers=auth_header(user))
+    client.post(f"/api/maschinen/{m2.id}/ausleihen",
+                json={"externes_team": "Alpha-Montage"}, headers=auth_header(user))
+
+    r = client.get("/api/maschinen/externe-teams", headers=auth_header(user))
+
+    assert r.status_code == 200
+    assert r.json() == ["Alpha-Montage", "Zeta-Bau"]
+
+
+def test_externe_teams_leer(client, db):
+    user = make_user(db, "max")
+
+    r = client.get("/api/maschinen/externe-teams", headers=auth_header(user))
+
+    assert r.status_code == 200
+    assert r.json() == []
