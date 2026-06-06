@@ -137,7 +137,7 @@ geteilten Bausteine. Betroffen:
 
 ## Kontrast / Zugänglichkeit
 
-- Fließtext `text-2` (`#cbd5e1`) auf `bg`/`surface`: gut lesbar (Kontrast > 7:1).
+- Fließtext `txt-2` (`#cbd5e1`) auf `bg`/`surface`: gut lesbar (Kontrast > 7:1).
 - Lime-Buttons tragen **dunklen** Text (`accent-ink`), nie weißen.
 - Status-Farben ausreichend hell für dunklen Grund (heller 400er-Bereich).
 
