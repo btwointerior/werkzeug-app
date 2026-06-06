@@ -23,7 +23,11 @@ export async function renderAdminHistorie(maschineId) {
           ${eintraege.map((e) => `
             <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
               <div class="flex justify-between items-start gap-2">
-                <div class="font-medium text-slate-900">${escapeHtml(e.benutzer.voller_name)}</div>
+                <div class="font-medium text-slate-900">${escapeHtml(e.benutzer.voller_name)}${
+                  e.externes_team_name
+                    ? ` <span class="font-normal text-slate-500">für</span> ${escapeHtml(e.externes_team_name)}`
+                    : ''
+                }</div>
                 ${e.ist_offen ? '<span class="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-800">offen</span>' : ''}
               </div>
               <div class="text-slate-600 text-xs mt-1">
