@@ -12,7 +12,7 @@ export function parseScan(text) {
 
   const i = s.indexOf(MARKER);
   if (i !== -1) {
-    const raw = s.slice(i + MARKER.length).trim();
+    const raw = s.slice(i + MARKER.length).split(/[?#&/\s]/)[0].trim();
     if (!raw) return null;
     try {
       return decodeURIComponent(raw).trim().toUpperCase();

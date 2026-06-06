@@ -36,3 +36,11 @@ test('Nicht-String → null', () => {
   assert.equal(parseScan(null), null);
   assert.equal(parseScan(undefined), null);
 });
+
+test('QR-URL mit Query nach dem Code → nur Code', () => {
+  assert.equal(parseScan('https://werkzeug.b2interior.de/#/m/M-0042?x=1'), 'M-0042');
+});
+
+test('percent-kodierter Code wird dekodiert', () => {
+  assert.equal(parseScan('#/m/M%2D0042'), 'M-0042');
+});
