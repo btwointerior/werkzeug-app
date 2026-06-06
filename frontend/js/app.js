@@ -111,7 +111,7 @@ function renderChrome() {
     <div class="max-w-3xl mx-auto h-16 border-t border-border bg-bg grid"
          style="grid-template-columns: repeat(${links.length}, minmax(0, 1fr));">
       ${links.map((l, i) => `
-        <button data-i="${i}" class="flex flex-col items-center justify-center text-xs gap-1 text-muted hover:bg-surface-2 active:bg-surface-2">
+        <button data-i="${i}" class="flex flex-col items-center justify-center text-xs gap-1 text-muted hover:bg-surface-2 active:scale-95 transition">
           <span class="text-xl leading-none">${l.icon}</span>
           <span>${l.label}</span>
         </button>`).join('')}
