@@ -21,6 +21,7 @@ SSH_OPTS="-o BatchMode=yes -i $KEY"
 # Was NICHT hochgeladen wird (Produktionsdaten + lokale Artefakte):
 EXCLUDES=(
   --exclude '.git/'
+  --exclude '.superpowers/'
   --exclude '.env'
   --exclude 'data/'
   --exclude 'uploads/'
