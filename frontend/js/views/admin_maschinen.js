@@ -10,13 +10,13 @@ export async function renderAdminMaschinen() {
   app.innerHTML = `
     <main class="max-w-3xl mx-auto pb-32 pt-4 px-4">
       <div class="flex items-center justify-between mb-4 gap-2">
-        <h1 class="text-2xl font-bold text-slate-900">Maschinen</h1>
+        <h1 class="text-2xl font-bold text-txt">Maschinen</h1>
         <a href="#/admin/maschinen/neu" class="${btnClasses('primary')}">+ Neu</a>
       </div>
       <div class="flex gap-2 mb-4">
         <input id="filter-suche" placeholder="Suche..."
-               class="flex-1 border border-slate-300 rounded-lg px-3 py-2">
-        <select id="filter-status" class="border border-slate-300 rounded-lg px-3 py-2">
+               class="flex-1 border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted-2">
+        <select id="filter-status" class="border border-border rounded-lg px-3 py-2 bg-surface text-txt">
           <option value="">Alle Status</option>
           <option value="verfuegbar">Verfügbar</option>
           <option value="ausgeliehen">Ausgeliehen</option>
@@ -27,9 +27,9 @@ export async function renderAdminMaschinen() {
       <div id="liste">${spinner()}</div>
     </main>
     <div id="sammel-bar"
-         class="fixed bottom-16 left-0 right-0 bg-white border-t border-slate-200 p-3 z-30 hidden">
+         class="fixed bottom-16 left-0 right-0 bg-surface border-t border-border p-3 z-30 hidden">
       <div class="max-w-3xl mx-auto flex items-center gap-3">
-        <span id="sammel-count" class="text-sm text-slate-700"></span>
+        <span id="sammel-count" class="text-sm text-txt-2"></span>
         <button id="sammel-clear" class="${btnClasses('ghost')} text-sm ml-auto">Auswahl löschen</button>
         <button id="sammel-druck" class="${btnClasses('primary')}">QR-Codes drucken</button>
       </div>
@@ -77,19 +77,19 @@ export async function renderAdminMaschinen() {
     try {
       const maschinen = await api.get(`/api/admin/maschinen?${params}`);
       if (!maschinen.length) {
-        liste.innerHTML = '<div class="text-center py-12 text-slate-500">Keine Treffer.</div>';
+        liste.innerHTML = '<div class="text-center py-12 text-muted">Keine Treffer.</div>';
         return;
       }
       liste.innerHTML = maschinen.map((m) => `
-        <div class="bg-white border border-slate-200 rounded-lg p-3 mb-2">
+        <div class="bg-surface border border-border rounded-lg p-3 mb-2">
           <div class="flex items-start gap-3">
             <label class="flex items-center pt-1 cursor-pointer">
               <input type="checkbox" data-sel="${m.id}" ${auswahl.has(m.id) ? 'checked' : ''}
                      class="w-5 h-5">
             </label>
             <a href="#/m/${encodeURIComponent(m.maschinen_code)}" class="flex-1 min-w-0">
-              <div class="font-semibold text-slate-900 truncate">${escapeHtml(m.name)}</div>
-              <div class="text-sm text-slate-500 truncate">
+              <div class="font-semibold text-txt truncate">${escapeHtml(m.name)}</div>
+              <div class="text-sm text-muted truncate">
                 ${escapeHtml(m.maschinen_code)}${m.platznummer ? ` · ${escapeHtml(m.platznummer)}` : ''}
               </div>
             </a>

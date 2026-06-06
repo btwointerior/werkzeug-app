@@ -7,7 +7,7 @@ export async function renderAdminBenutzer() {
   app.innerHTML = `
     <main class="max-w-3xl mx-auto pb-24 pt-4 px-4">
       <div class="flex items-center justify-between mb-4">
-        <h1 class="text-2xl font-bold text-slate-900">Benutzer</h1>
+        <h1 class="text-2xl font-bold text-txt">Benutzer</h1>
         <button id="btn-neu" class="${btnClasses('primary')}">+ Neu</button>
       </div>
       <div id="liste">${spinner()}</div>
@@ -21,10 +21,10 @@ export async function renderAdminBenutzer() {
       const benutzer = await api.get('/api/admin/benutzer');
       const liste = document.getElementById('liste');
       liste.innerHTML = benutzer.map((b) => `
-        <div class="bg-white border border-slate-200 rounded-lg p-3 mb-2 flex items-center justify-between gap-3">
+        <div class="bg-surface border border-border rounded-lg p-3 mb-2 flex items-center justify-between gap-3">
           <div class="min-w-0">
-            <div class="font-medium text-slate-900 truncate">${escapeHtml(b.voller_name)}</div>
-            <div class="text-sm text-slate-500 truncate">
+            <div class="font-medium text-txt truncate">${escapeHtml(b.voller_name)}</div>
+            <div class="text-sm text-muted truncate">
               ${escapeHtml(b.benutzername)} · ${escapeHtml(b.rolle)}${b.aktiv ? '' : ' · <span class="text-rose-600 font-medium">gesperrt</span>'}
             </div>
           </div>
@@ -46,33 +46,33 @@ export async function renderAdminBenutzer() {
       <div class="space-y-3 text-sm">
         ${istNeu ? `
           <div>
-            <label class="block font-medium text-slate-700 mb-1">Benutzername *</label>
+            <label class="block font-medium text-txt-2 mb-1">Benutzername *</label>
             <input id="bu-username" type="text"
-                   class="w-full border border-slate-300 rounded-lg px-3 py-2">
+                   class="w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted-2">
           </div>
           <div>
-            <label class="block font-medium text-slate-700 mb-1">Passwort *</label>
+            <label class="block font-medium text-txt-2 mb-1">Passwort *</label>
             <input id="bu-pw" type="password"
-                   class="w-full border border-slate-300 rounded-lg px-3 py-2">
+                   class="w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted-2">
           </div>` : ''}
         <div>
-          <label class="block font-medium text-slate-700 mb-1">Vorname *</label>
+          <label class="block font-medium text-txt-2 mb-1">Vorname *</label>
           <input id="bu-vorname" type="text" value="${escapeHtml(bestand?.vorname || '')}"
-                 class="w-full border border-slate-300 rounded-lg px-3 py-2">
+                 class="w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted-2">
         </div>
         <div>
-          <label class="block font-medium text-slate-700 mb-1">Nachname *</label>
+          <label class="block font-medium text-txt-2 mb-1">Nachname *</label>
           <input id="bu-nachname" type="text" value="${escapeHtml(bestand?.nachname || '')}"
-                 class="w-full border border-slate-300 rounded-lg px-3 py-2">
+                 class="w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted-2">
         </div>
         <div>
-          <label class="block font-medium text-slate-700 mb-1">E-Mail (optional)</label>
+          <label class="block font-medium text-txt-2 mb-1">E-Mail (optional)</label>
           <input id="bu-email" type="email" value="${escapeHtml(bestand?.email || '')}"
-                 class="w-full border border-slate-300 rounded-lg px-3 py-2">
+                 class="w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted-2">
         </div>
         <div>
-          <label class="block font-medium text-slate-700 mb-1">Rolle</label>
-          <select id="bu-rolle" class="w-full border border-slate-300 rounded-lg px-3 py-2">
+          <label class="block font-medium text-txt-2 mb-1">Rolle</label>
+          <select id="bu-rolle" class="w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt">
             <option value="mitarbeiter" ${bestand?.rolle === 'mitarbeiter' ? 'selected' : ''}>Mitarbeiter</option>
             <option value="admin"       ${bestand?.rolle === 'admin'       ? 'selected' : ''}>Admin</option>
           </select>
@@ -85,11 +85,11 @@ export async function renderAdminBenutzer() {
             </label>
           </div>
           <div>
-            <label class="block font-medium text-slate-700 mb-1">
+            <label class="block font-medium text-txt-2 mb-1">
               Neues Passwort (leer lassen = unverändert)
             </label>
             <input id="bu-pw-neu" type="password"
-                   class="w-full border border-slate-300 rounded-lg px-3 py-2">
+                   class="w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted-2">
           </div>` : ''}
       </div>`;
 
@@ -149,7 +149,7 @@ export async function renderAdminBenutzer() {
   async function loescheBenutzer(bestand) {
     const ok = await modal({
       titel: 'Mitarbeiter löschen',
-      body: `<p class="text-sm text-slate-700">Mitarbeiter
+      body: `<p class="text-sm text-txt-2">Mitarbeiter
              <strong>${escapeHtml(bestand.voller_name)}</strong>
              wirklich endgültig löschen?</p>`,
       buttons: [
