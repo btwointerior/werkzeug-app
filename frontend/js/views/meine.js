@@ -2,12 +2,14 @@ import { api } from '../api.js';
 import {
   btnClasses, escapeHtml, leerZustand, spinner, statusBadge, zeitseit,
 } from '../ui.js';
+import { scanQr } from '../scanner.js';
 
 export async function renderMeine() {
   const app = document.getElementById('app');
   app.innerHTML = `
     <main class="max-w-3xl mx-auto pb-24 pt-4 px-4">
       <h1 class="text-2xl font-bold text-txt mb-4">Meine Ausleihen</h1>
+      <button id="scan-btn" class="${btnClasses('primary')} w-full mb-4 text-base">📷 QR-Code scannen</button>
       <div class="bg-surface rounded-lg shadow-sm p-4 mb-4 border border-border">
         <label class="text-sm font-medium text-txt-2 mb-2 block" for="code-input">
           Maschinen-Code eingeben
@@ -25,6 +27,12 @@ export async function renderMeine() {
     e.preventDefault();
     const code = document.getElementById('code-input').value.trim().toUpperCase();
     if (code) location.hash = `#/m/${encodeURIComponent(code)}`;
+  };
+
+  document.getElementById('scan-btn').onclick = async () => {
+    const code = await scanQr();
+    if (code) location.hash = `#/m/${encodeURIComponent(code)}`;
+    else document.getElementById('code-input')?.focus();
   };
 
   const liste = document.getElementById('meine-liste');
