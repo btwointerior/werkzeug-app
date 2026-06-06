@@ -42,7 +42,7 @@ export function scanQr() {
     overlay.innerHTML = `
       <div class="px-4 py-3 text-txt font-semibold">QR-Code scannen</div>
       <div class="relative flex-1 overflow-hidden">
-        <video class="absolute inset-0 w-full h-full object-cover" playsinline muted></video>
+        <video class="absolute inset-0 w-full h-full object-cover" autoplay playsinline muted></video>
         <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div id="qr-frame" class="w-64 h-64 max-w-[70vw] max-h-[70vw] rounded-2xl border-4 border-accent"></div>
         </div>
