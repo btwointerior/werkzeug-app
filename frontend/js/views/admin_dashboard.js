@@ -10,7 +10,7 @@ export async function renderAdminDashboard() {
     stats = await api.get('/api/admin/statistiken');
   } catch (err) {
     app.querySelector('main').innerHTML =
-      `<div class="text-rose-600">${escapeHtml(err.detail || 'Fehler')}</div>`;
+      `<div class="text-broken">${escapeHtml(err.detail || 'Fehler')}</div>`;
     return;
   }
 
@@ -50,11 +50,11 @@ export async function renderAdminDashboard() {
       ${stats.ueberfaellige.length ? `
         <ul class="space-y-2">
           ${stats.ueberfaellige.map((u) => `
-            <li class="border border-rose-200 bg-rose-50 rounded p-3 text-sm">
-              <a href="#/m/${encodeURIComponent(u.maschine.maschinen_code)}" class="font-medium text-rose-900 hover:underline">
+            <li class="border border-broken/30 bg-broken/10 rounded p-3 text-sm">
+              <a href="#/m/${encodeURIComponent(u.maschine.maschinen_code)}" class="font-medium text-broken hover:underline">
                 ${escapeHtml(u.maschine.name)} (${escapeHtml(u.maschine.maschinen_code)})
               </a>
-              <div class="text-rose-700 mt-1">
+              <div class="text-txt-2 mt-1">
                 ${escapeHtml(u.benutzer.voller_name)} — ${zeitseit(u.ausleih_zeitpunkt)}
               </div>
             </li>`).join('')}
