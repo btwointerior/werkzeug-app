@@ -84,8 +84,10 @@ export function scanQr() {
     const tick = () => {
       if (done) return;
       if (video.readyState === video.HAVE_ENOUGH_DATA && video.videoWidth) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+        }
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const result = window.jsQR ? window.jsQR(img.data, img.width, img.height) : null;
@@ -110,11 +112,12 @@ export function scanQr() {
     }
     md.getUserMedia({ video: { facingMode: 'environment' } })
       .then((s) => {
+        if (done) { s.getTracks().forEach((t) => t.stop()); return; }
         stream = s;
         video.srcObject = s;
         return video.play();
       })
-      .then(() => { raf = requestAnimationFrame(tick); })
-      .catch(() => showError());
+      .then(() => { if (!done) raf = requestAnimationFrame(tick); })
+      .catch(() => { if (!done) showError(); });
   });
 }
