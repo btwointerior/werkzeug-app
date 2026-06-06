@@ -2,6 +2,7 @@
 
 import { api, getToken, clearToken } from './api.js';
 import { btnClasses, escapeHtml, logoMarkup, modal, toast } from './ui.js';
+import { scanQr } from './scanner.js';
 
 import { renderLogin } from './views/login.js';
 import { renderMeine } from './views/meine.js';
@@ -102,7 +103,7 @@ function renderChrome() {
 
   const links = [
     { hash: '#/meine', label: 'Meine', icon: '📋' },
-    { label: 'Code',   icon: '🔍', action: askCode },
+    { label: 'Code',   icon: '🔍', action: scanOrAsk },
   ];
   if (state.istAdmin) links.push({ hash: '#/admin', label: 'Admin', icon: '⚙️' });
 
@@ -123,6 +124,12 @@ function renderChrome() {
       else if (links[i].hash) location.hash = links[i].hash;
     };
   });
+}
+
+async function scanOrAsk() {
+  const code = await scanQr();
+  if (code) location.hash = `#/m/${encodeURIComponent(code)}`;
+  else await askCode();   // Abbruch/Kamera nicht möglich → manuelle Eingabe
 }
 
 async function askCode() {
