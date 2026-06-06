@@ -23,10 +23,10 @@ export async function renderMaschine(code) {
     if (err.status === 404) {
       app.innerHTML = `
         <main class="max-w-3xl mx-auto pt-8 px-4">
-          <div class="bg-white rounded-lg p-6 border border-slate-200 text-center">
+          <div class="bg-surface rounded-lg p-6 border border-border text-center">
             <div class="text-4xl mb-2">❓</div>
-            <h2 class="text-lg font-semibold text-slate-900 mb-1">Maschine nicht gefunden</h2>
-            <p class="text-slate-600 mb-4">Code <code>${escapeHtml(code)}</code> existiert nicht.</p>
+            <h2 class="text-lg font-semibold text-txt mb-1">Maschine nicht gefunden</h2>
+            <p class="text-muted mb-4">Code <code>${escapeHtml(code)}</code> existiert nicht.</p>
             <a href="#/meine" class="${btnClasses('secondary')} inline-block">Zurück</a>
           </div>
         </main>`;
@@ -51,8 +51,8 @@ export async function renderMaschine(code) {
       <main class="max-w-3xl mx-auto pb-40 pt-4 px-4">
         <div class="flex items-start justify-between gap-3 mb-3">
           <div class="min-w-0">
-            <h1 class="text-2xl font-bold text-slate-900 break-words">${escapeHtml(m.name)}</h1>
-            <div class="text-sm text-slate-500 mt-1">
+            <h1 class="text-2xl font-bold text-txt break-words">${escapeHtml(m.name)}</h1>
+            <div class="text-sm text-muted mt-1">
               ${escapeHtml(m.maschinen_code)}${m.platznummer ? ` · ${escapeHtml(m.platznummer)}` : ''}
             </div>
           </div>
@@ -60,29 +60,29 @@ export async function renderMaschine(code) {
         </div>
 
         ${a ? `
-          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-            <div class="text-xs uppercase tracking-wide text-blue-700 font-semibold">Aktuell ausgeliehen</div>
-            <div class="text-blue-900 font-medium mt-1">${escapeHtml(a.benutzer.voller_name)}</div>
-            <div class="text-blue-800 text-sm">${zeitseit(a.ausleih_zeitpunkt)}</div>
+          <div class="bg-surface-2 border border-border rounded-lg p-4 mb-4">
+            <div class="text-xs uppercase tracking-wide text-lent font-semibold">Aktuell ausgeliehen</div>
+            <div class="text-txt font-medium mt-1">${escapeHtml(a.benutzer.voller_name)}</div>
+            <div class="text-txt-2 text-sm">${zeitseit(a.ausleih_zeitpunkt)}</div>
           </div>` : ''}
 
         ${m.status === 'defekt' ? `
-          <div class="bg-rose-50 border border-rose-200 text-rose-900 rounded-lg p-4 mb-4">
+          <div class="bg-surface-2 border border-border text-broken rounded-lg p-4 mb-4">
             <div class="font-semibold">Als defekt gemeldet</div>
             <div class="text-sm">Die Maschine ist gesperrt und kann nur von einem Admin freigegeben werden.</div>
           </div>` : ''}
 
         ${m.status === 'wartung' ? `
-          <div class="bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-4 mb-4">
+          <div class="bg-surface-2 border border-border text-maint rounded-lg p-4 mb-4">
             <div class="font-semibold">In Wartung</div>
             <div class="text-sm">Die Maschine ist gesperrt und kann nur von einem Admin freigegeben werden.</div>
           </div>` : ''}
 
         ${m.foto_url ? `
           <img src="${escapeHtml(m.foto_url)}" alt="${escapeHtml(m.name)}"
-               class="w-full aspect-video object-contain bg-slate-100 border border-slate-200 rounded-lg mb-4">
+               class="w-full aspect-video object-contain bg-surface-2 border border-border rounded-lg mb-4">
         ` : `
-          <div class="bg-slate-100 border border-slate-200 rounded-lg aspect-video flex items-center justify-center text-slate-500 mb-4">
+          <div class="bg-surface-2 border border-border rounded-lg aspect-video flex items-center justify-center text-muted mb-4">
             <div class="text-center">
               <div class="text-3xl">📷</div>
               <div class="text-xs mt-1">Kein Foto hinterlegt</div>
@@ -90,25 +90,25 @@ export async function renderMaschine(code) {
           </div>
         `}
 
-        <div class="bg-white rounded-lg border border-slate-200 p-4 mb-4">
-          <h2 class="text-sm font-semibold text-slate-700 mb-2">Details</h2>
+        <div class="bg-surface rounded-lg border border-border p-4 mb-4">
+          <h2 class="text-sm font-semibold text-txt-2 mb-2">Details</h2>
           <dl class="grid grid-cols-3 gap-y-2 text-sm">
-            ${m.hersteller   ? `<dt class="text-slate-500">Hersteller</dt><dd class="col-span-2 text-slate-900">${escapeHtml(m.hersteller)}</dd>` : ''}
-            ${m.seriennummer ? `<dt class="text-slate-500">Seriennr.</dt><dd class="col-span-2 text-slate-900">${escapeHtml(m.seriennummer)}</dd>` : ''}
-            ${m.platznummer  ? `<dt class="text-slate-500">Platz</dt><dd class="col-span-2 text-slate-900">${escapeHtml(m.platznummer)}</dd>` : ''}
+            ${m.hersteller   ? `<dt class="text-muted">Hersteller</dt><dd class="col-span-2 text-txt">${escapeHtml(m.hersteller)}</dd>` : ''}
+            ${m.seriennummer ? `<dt class="text-muted">Seriennr.</dt><dd class="col-span-2 text-txt">${escapeHtml(m.seriennummer)}</dd>` : ''}
+            ${m.platznummer  ? `<dt class="text-muted">Platz</dt><dd class="col-span-2 text-txt">${escapeHtml(m.platznummer)}</dd>` : ''}
           </dl>
         </div>
 
         ${m.beschreibung ? `
-          <div class="bg-white rounded-lg border border-slate-200 p-4 mb-4">
-            <h2 class="text-sm font-semibold text-slate-700 mb-2">Beschreibung</h2>
-            <p class="text-sm text-slate-800 whitespace-pre-wrap">${escapeHtml(m.beschreibung)}</p>
+          <div class="bg-surface rounded-lg border border-border p-4 mb-4">
+            <h2 class="text-sm font-semibold text-txt-2 mb-2">Beschreibung</h2>
+            <p class="text-sm text-txt whitespace-pre-wrap">${escapeHtml(m.beschreibung)}</p>
           </div>` : ''}
 
         ${m.zubehoer_liste.length ? `
-          <div class="bg-white rounded-lg border border-slate-200 p-4 mb-4">
-            <h2 class="text-sm font-semibold text-slate-700 mb-2">Zubehör</h2>
-            <ul class="text-sm text-slate-800 space-y-1">
+          <div class="bg-surface rounded-lg border border-border p-4 mb-4">
+            <h2 class="text-sm font-semibold text-txt-2 mb-2">Zubehör</h2>
+            <ul class="text-sm text-txt space-y-1">
               ${m.zubehoer_liste.map((z) => `<li>• ${escapeHtml(z.bezeichnung)}</li>`).join('')}
             </ul>
           </div>` : ''}
@@ -125,7 +125,7 @@ export async function renderMaschine(code) {
         `}
       </main>
 
-      <div class="fixed bottom-16 left-0 right-0 bg-white border-t border-slate-200 p-3 z-30">
+      <div class="fixed bottom-16 left-0 right-0 bg-surface border-t border-border p-3 z-30">
         <div class="max-w-3xl mx-auto">
           ${aktion.html}
         </div>
@@ -226,21 +226,21 @@ export async function renderMaschine(code) {
 async function ausleihDialog(zubehoerListe, bekannteTeams = []) {
   const body = document.createElement('div');
   body.innerHTML = `
-    <p class="text-sm font-medium text-slate-700 mb-2">Für wen leihst du aus?</p>
+    <p class="text-sm font-medium text-txt-2 mb-2">Für wen leihst du aus?</p>
     <div class="space-y-2 mb-3">
-      <label class="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+      <label class="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-surface-2">
         <input type="radio" name="empf" value="mich" checked class="w-5 h-5">
         <span class="font-medium">Für mich</span>
       </label>
-      <label class="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+      <label class="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-surface-2">
         <input type="radio" name="empf" value="team" class="w-5 h-5">
         <span class="font-medium">Für externes Montageteam</span>
       </label>
     </div>
     <div id="team-feld" class="mb-4 hidden">
-      <label class="block text-sm font-medium text-slate-700 mb-1" for="team-name">Team-Name</label>
+      <label class="block text-sm font-medium text-txt-2 mb-1" for="team-name">Team-Name</label>
       <input id="team-name" list="team-liste" autocomplete="off"
-             class="w-full border border-slate-300 rounded-lg p-2 text-sm"
+             class="w-full border border-border rounded-lg p-2 text-sm bg-surface text-txt placeholder:text-muted-2"
              placeholder="Team auswählen oder neu eingeben">
       <datalist id="team-liste">
         ${bekannteTeams.map((t) => `<option value="${escapeHtml(t)}"></option>`).join('')}
@@ -250,10 +250,10 @@ async function ausleihDialog(zubehoerListe, bekannteTeams = []) {
       </p>
     </div>
     ${zubehoerListe.length ? `
-      <p class="text-sm text-slate-600 mb-2">Welches Zubehör nimmst du mit? Hake an, was du mitnimmst.</p>
+      <p class="text-sm text-muted mb-2">Welches Zubehör nimmst du mit? Hake an, was du mitnimmst.</p>
       <div class="space-y-2">
         ${zubehoerListe.map((z) => `
-          <label class="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+          <label class="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-surface-2">
             <input type="checkbox" value="${escapeHtml(z.bezeichnung)}" class="w-5 h-5">
             <span class="font-medium">${escapeHtml(z.bezeichnung)}</span>
           </label>`).join('')}
@@ -310,38 +310,38 @@ async function ausleihDialog(zubehoerListe, bekannteTeams = []) {
 async function rueckgabeModal(mitgenommen = []) {
   const body = document.createElement('div');
   body.innerHTML = `
-    <p class="text-sm text-slate-600 mb-3">Wie ist der Zustand?</p>
+    <p class="text-sm text-muted mb-3">Wie ist der Zustand?</p>
     <div class="space-y-2 mb-4">
-      <label class="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+      <label class="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-surface-2">
         <input type="radio" name="zust" value="ok" checked class="w-5 h-5">
         <span class="font-medium">Alles in Ordnung</span>
       </label>
-      <label class="flex items-center gap-3 p-3 border border-rose-200 rounded-lg cursor-pointer hover:bg-rose-50">
+      <label class="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-surface-2">
         <input type="radio" name="zust" value="defekt" class="w-5 h-5">
-        <span class="font-medium text-rose-700">Defekt</span>
+        <span class="font-medium text-broken">Defekt</span>
       </label>
-      <label class="flex items-center gap-3 p-3 border border-amber-200 rounded-lg cursor-pointer hover:bg-amber-50">
+      <label class="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-surface-2">
         <input type="radio" name="zust" value="wartung" class="w-5 h-5">
-        <span class="font-medium text-amber-700">Wartung nötig</span>
+        <span class="font-medium text-maint">Wartung nötig</span>
       </label>
     </div>
     ${mitgenommen.length ? `
       <div class="mb-4">
-        <p class="text-sm font-medium text-slate-700 mb-2">Zubehör zurückgegeben?</p>
+        <p class="text-sm font-medium text-txt-2 mb-2">Zubehör zurückgegeben?</p>
         <div class="space-y-2">
           ${mitgenommen.map((z) => `
-            <label class="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+            <label class="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-surface-2">
               <input type="checkbox" data-zid="${z.id}" checked class="w-5 h-5">
               <span class="text-sm">${escapeHtml(z.bezeichnung)}</span>
             </label>`).join('')}
         </div>
       </div>` : ''}
-    <label class="block text-sm font-medium text-slate-700 mb-1" for="r-komm">Kommentar (optional)</label>
+    <label class="block text-sm font-medium text-txt-2 mb-1" for="r-komm">Kommentar (optional)</label>
     <p id="r-komm-pflicht" class="text-sm text-rose-600 mb-2 hidden">
       Es fehlt Zubehör — bitte im Kommentar angeben, was los ist.
     </p>
     <textarea id="r-komm" rows="3"
-              class="w-full border border-slate-300 rounded-lg p-2 text-sm"
+              class="w-full border border-border rounded-lg p-2 text-sm bg-surface text-txt placeholder:text-muted-2"
               placeholder="Was ist passiert?"></textarea>`;
 
   const result = await modal({

@@ -38,18 +38,18 @@ export async function renderAdminMaschineForm(maschineId) {
   function zeichne() {
     app.innerHTML = `
       <main class="max-w-3xl mx-auto pb-24 pt-4 px-4">
-        <h1 class="text-2xl font-bold text-slate-900 mb-4">
+        <h1 class="text-2xl font-bold text-txt mb-4">
           ${maschineId ? 'Maschine bearbeiten' : 'Neue Maschine'}
         </h1>
-        <form id="form" class="space-y-3 bg-white border border-slate-200 rounded-lg p-4">
+        <form id="form" class="space-y-3 bg-surface border border-border rounded-lg p-4">
           ${feldText('maschinen_code', 'Maschinen-Code (z.B. M-0042)', daten.maschinen_code, { uppercase: true, disabled: !!maschineId })}
           ${feldText('name', 'Name', daten.name, { required: true })}
           ${feldText('platznummer', 'Platznummer', daten.platznummer)}
           ${feldText('hersteller', 'Hersteller', daten.hersteller)}
           ${feldText('seriennummer', 'Seriennummer', daten.seriennummer)}
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Status</label>
-            <select id="f-status" class="w-full border border-slate-300 rounded-lg px-3 py-2">
+            <label class="block text-sm font-medium text-txt-2 mb-1">Status</label>
+            <select id="f-status" class="w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt">
               <option value="verfuegbar" ${daten.status === 'verfuegbar' ? 'selected' : ''}>Verfügbar</option>
               <option value="defekt"     ${daten.status === 'defekt'     ? 'selected' : ''}>Defekt</option>
               <option value="wartung"    ${daten.status === 'wartung'    ? 'selected' : ''}>In Wartung</option>
@@ -58,16 +58,16 @@ export async function renderAdminMaschineForm(maschineId) {
                 : ''}
             </select>
             ${daten.status === 'ausgeliehen'
-              ? '<p class="text-xs text-slate-500 mt-1">Status kann nicht geändert werden, solange die Maschine ausgeliehen ist.</p>'
+              ? '<p class="text-xs text-muted mt-1">Status kann nicht geändert werden, solange die Maschine ausgeliehen ist.</p>'
               : ''}
           </div>
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Beschreibung</label>
+            <label class="block text-sm font-medium text-txt-2 mb-1">Beschreibung</label>
             <textarea id="f-beschreibung" rows="3"
-                      class="w-full border border-slate-300 rounded-lg px-3 py-2">${escapeHtml(daten.beschreibung)}</textarea>
+                      class="w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted-2">${escapeHtml(daten.beschreibung)}</textarea>
           </div>
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Zubehör</label>
+            <label class="block text-sm font-medium text-txt-2 mb-1">Zubehör</label>
             <div id="zub-liste" class="space-y-2 mb-2"></div>
             <button type="button" id="zub-add" class="${btnClasses('secondary')} text-sm">+ Zubehör</button>
           </div>
@@ -82,7 +82,7 @@ export async function renderAdminMaschineForm(maschineId) {
         ${maschineId ? uploadSektion('foto', 'Foto', daten.foto_url, daten.foto_pfad,
             'JPG / PNG / WebP, max 10 MB. Wird auf max. 1600 px verkleinert.',
             'image/jpeg,image/png,image/webp')
-          : '<p class="text-sm text-slate-500 mt-3">Foto und Anleitung können nach dem Anlegen hochgeladen werden.</p>'}
+          : '<p class="text-sm text-muted mt-3">Foto und Anleitung können nach dem Anlegen hochgeladen werden.</p>'}
 
         ${maschineId ? uploadSektion('anl', 'Betriebsanleitung', daten.anleitung_url, daten.anleitung_pfad,
             'Nur PDF, max 10 MB.', 'application/pdf', /* istBild */ false)
@@ -105,7 +105,7 @@ export async function renderAdminMaschineForm(maschineId) {
       zList.innerHTML = daten.zubehoer.map((z, i) => `
         <div class="flex gap-2">
           <input data-z="${i}" type="text" value="${escapeHtml(z)}"
-                 class="flex-1 border border-slate-300 rounded-lg px-3 py-2">
+                 class="flex-1 border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted-2">
           <button type="button" data-zdel="${i}"
                   class="${btnClasses('danger')} px-3 text-sm">×</button>
         </div>`).join('');
@@ -168,11 +168,11 @@ export async function renderAdminMaschineForm(maschineId) {
     // Drag-and-Drop
     ['dragenter', 'dragover'].forEach((ev) => dropZone.addEventListener(ev, (e) => {
       e.preventDefault(); e.stopPropagation();
-      dropZone.classList.add('border-blue-500', 'bg-blue-50');
+      dropZone.classList.add('border-accent', 'bg-surface-2');
     }));
     ['dragleave', 'drop'].forEach((ev) => dropZone.addEventListener(ev, (e) => {
       e.preventDefault(); e.stopPropagation();
-      dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+      dropZone.classList.remove('border-accent', 'bg-surface-2');
     }));
     dropZone.addEventListener('drop', (e) => {
       if (e.dataTransfer.files.length) {
@@ -220,10 +220,10 @@ export async function renderAdminMaschineForm(maschineId) {
   // -----------------------------------------------------------
 
   function feldText(name, label, val, opt = {}) {
-    const cls = `w-full border border-slate-300 rounded-lg px-3 py-2${opt.uppercase ? ' uppercase' : ''}`;
+    const cls = `w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted-2${opt.uppercase ? ' uppercase' : ''}`;
     return `
       <div>
-        <label class="block text-sm font-medium text-slate-700 mb-1" for="f-${name}">
+        <label class="block text-sm font-medium text-txt-2 mb-1" for="f-${name}">
           ${escapeHtml(label)}${opt.required ? ' *' : ''}
         </label>
         <input id="f-${name}" type="text" value="${escapeHtml(val)}"
@@ -240,31 +240,31 @@ function uploadSektion(prefix, titel, url, pfad, hinweis, accept, istBild = true
     ? (istBild
         ? `<img src="${escapeHtml(url)}" class="max-h-64 mx-auto mb-3 object-contain rounded">`
         : `<a href="${escapeHtml(url)}" target="_blank" rel="noopener"
-              class="block text-sm text-blue-600 underline mb-3 text-center">Aktuelle Datei öffnen</a>`)
-    : `<p class="text-sm text-slate-500 mb-3 text-center">Noch nichts hinterlegt.</p>`;
+              class="block text-sm text-accent underline mb-3 text-center">Aktuelle Datei öffnen</a>`)
+    : `<p class="text-sm text-muted mb-3 text-center">Noch nichts hinterlegt.</p>`;
 
   const delBtn = pfad
     ? `<button id="${prefix}-delete" type="button" class="bg-rose-600 hover:bg-rose-700 text-white min-h-[44px] px-3 rounded-lg text-sm">Entfernen</button>`
     : '';
 
   return `
-    <section class="bg-white rounded-lg border border-slate-200 p-4 mt-4">
-      <h2 class="font-semibold text-slate-900 mb-3">${titel}</h2>
+    <section class="bg-surface rounded-lg border border-border p-4 mt-4">
+      <h2 class="font-semibold text-txt mb-3">${titel}</h2>
       ${vorschau}
       <div id="${prefix}-drop"
-           class="border-2 border-dashed border-slate-300 rounded-lg p-4 text-center text-slate-500 text-sm mb-2 transition">
+           class="border-2 border-dashed border-border rounded-lg p-4 text-center text-muted text-sm mb-2 transition">
         Datei hier ablegen
       </div>
       <div class="flex gap-2 flex-wrap items-stretch">
         <input type="file" id="${prefix}-input" accept="${accept}"
-               class="flex-1 min-w-0 text-sm border border-slate-300 rounded-lg p-2">
+               class="flex-1 min-w-0 text-sm border border-border rounded-lg p-2 bg-surface text-txt">
         <button id="${prefix}-upload" type="button"
-                class="bg-blue-600 hover:bg-blue-700 text-white min-h-[44px] px-4 rounded-lg text-sm">
+                class="bg-accent hover:brightness-95 text-accent-ink min-h-[44px] px-4 rounded-lg text-sm">
           Hochladen
         </button>
         ${delBtn}
       </div>
-      <p class="text-xs text-slate-500 mt-2">${escapeHtml(hinweis)}</p>
+      <p class="text-xs text-muted mt-2">${escapeHtml(hinweis)}</p>
     </section>`;
 }
 
