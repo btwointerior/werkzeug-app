@@ -33,8 +33,8 @@ Die Spalte **Token** ist zugleich der Tailwind-Farbname (z. B. `bg-surface`,
 |-----------------------|------|------------|
 | `bg` (Grund) | `#0b0f1a` | Seitenhintergrund, Header, Bottom-Nav |
 | `surface` (Karte) | `#151b2b` | Karten, Modals, Eingabefelder |
-| `surface-2` | `#1e2740` | sekundäre Flächen / gefüllte Sekundär-Buttons |
-| `border` | `#1e2740` | Rahmen, Trennlinien |
+| `surface-2` | `#28344f` | sekundäre Flächen / gefüllte Sekundär-Buttons / Hover |
+| `border` | `#28344f` | Rahmen, Trennlinien |
 | `txt` | `#ffffff` | Überschriften, primärer Text |
 | `txt-2` | `#cbd5e1` | Fließtext |
 | `muted` | `#94a3b8` | Sekundärtext |
@@ -47,6 +47,10 @@ Die Spalte **Token** ist zugleich der Tailwind-Farbname (z. B. `bg-surface`,
 | `maint` — wartung | `#fbbf24` (gelb) | Badge, Statistik |
 
 (`txt`/`txt-2` statt `text`, weil `text-` bereits ein Tailwind-Utility-Präfix ist.)
+
+Hinweis: `surface-2` und `border` wurden im finalen Polish von ursprünglich
+`#1e2740` auf `#28344f` aufgehellt, damit Hover-Zustände und Karten-/Modal-Ränder
+auf dem dunklen Grund sichtbar sind.
 
 **Grundsatz:** Lime ist ausschließlich Marke + Aktion. Die vier Status-Zustände
 haben eigene, davon klar unterscheidbare Farben — Lime ist **kein** Status.
