@@ -12,23 +12,29 @@ export function escapeHtml(s) {
 
 export function btnClasses(variant = 'primary') {
   const base =
-    'inline-flex items-center justify-center min-h-[48px] px-4 rounded-lg ' +
-    'font-medium transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed';
+    'inline-flex items-center justify-center min-h-[48px] px-4 rounded-xl ' +
+    'font-semibold transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed';
   const variants = {
-    primary: 'bg-blue-600 hover:bg-blue-700 text-white',
-    secondary: 'bg-slate-200 hover:bg-slate-300 text-slate-900',
-    success: 'bg-emerald-600 hover:bg-emerald-700 text-white',
-    warning: 'bg-orange-500 hover:bg-orange-600 text-white',
-    danger: 'bg-rose-600 hover:bg-rose-700 text-white',
-    ghost: 'bg-transparent hover:bg-slate-100 text-slate-700',
+    primary:   'bg-accent text-accent-ink hover:brightness-95',
+    secondary: 'bg-surface-2 text-txt-2 hover:brightness-110',
+    success:   'bg-ok text-accent-ink hover:brightness-95',
+    warning:   'bg-maint text-accent-ink hover:brightness-95',
+    danger:    'bg-broken text-accent-ink hover:brightness-95',
+    ghost:     'bg-transparent text-txt-2 hover:bg-surface-2',
   };
   return `${base} ${variants[variant] || variants.primary}`;
 }
 
+// Platzhalter-Logo. Späterer Austausch gegen echtes B2-Interior-Logo NUR hier.
+export function logoMarkup(sizeCls = 'h-8 w-8 text-sm') {
+  return `<span class="inline-flex items-center justify-center ${sizeCls} rounded-lg ` +
+         `bg-accent text-accent-ink font-extrabold tracking-tight">B2</span>`;
+}
+
 const TOAST_VARIANTS = {
-  success: 'bg-emerald-600',
-  error: 'bg-rose-600',
-  info: 'bg-slate-800',
+  success: 'bg-ok text-accent-ink',
+  error: 'bg-broken text-accent-ink',
+  info: 'bg-surface-2 text-txt',
 };
 
 export function toast(text, typ = 'info', dauerMs = 3500) {
@@ -36,7 +42,7 @@ export function toast(text, typ = 'info', dauerMs = 3500) {
   if (!root) return;
   const el = document.createElement('div');
   el.className =
-    `${TOAST_VARIANTS[typ] || TOAST_VARIANTS.info} text-white rounded-lg shadow-lg ` +
+    `${TOAST_VARIANTS[typ] || TOAST_VARIANTS.info} rounded-xl shadow-lg ` +
     'px-4 py-3 text-base mb-2 max-w-sm pointer-events-auto';
   el.textContent = text;
   root.appendChild(el);
@@ -60,11 +66,11 @@ export function modal({ titel, body, buttons = [] }) {
 
     const card = document.createElement('div');
     card.className =
-      'bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] flex flex-col';
+      'bg-surface border border-border rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] flex flex-col';
 
     const header = document.createElement('div');
-    header.className = 'px-5 py-4 border-b border-slate-200';
-    header.innerHTML = `<h2 class="text-lg font-semibold text-slate-900">${escapeHtml(titel)}</h2>`;
+    header.className = 'px-5 py-4 border-b border-border';
+    header.innerHTML = `<h2 class="text-lg font-semibold text-txt">${escapeHtml(titel)}</h2>`;
 
     const content = document.createElement('div');
     content.className = 'px-5 py-4 overflow-y-auto';
@@ -73,7 +79,7 @@ export function modal({ titel, body, buttons = [] }) {
 
     const footer = document.createElement('div');
     footer.className =
-      'px-5 py-4 border-t border-slate-200 flex flex-row-reverse gap-2 flex-shrink-0';
+      'px-5 py-4 border-t border-border flex flex-row-reverse gap-2 flex-shrink-0';
 
     const close = (value) => {
       backdrop.remove();
@@ -111,7 +117,7 @@ export function confirmDialog(text, opts = {}) {
   const { titel = 'Bestätigen?', okLabel = 'OK', dangerous = false } = opts;
   return modal({
     titel,
-    body: `<p class="text-slate-700">${escapeHtml(text)}</p>`,
+    body: `<p class="text-txt-2">${escapeHtml(text)}</p>`,
     buttons: [
       { label: okLabel, variant: dangerous ? 'danger' : 'primary', value: true },
       { label: 'Abbrechen', variant: 'secondary', value: false },
@@ -121,13 +127,14 @@ export function confirmDialog(text, opts = {}) {
 
 export function statusBadge(status) {
   const map = {
-    verfuegbar:  { text: 'Verfügbar',   cls: 'bg-emerald-100 text-emerald-800' },
-    ausgeliehen: { text: 'Ausgeliehen', cls: 'bg-blue-100 text-blue-800' },
-    defekt:      { text: 'Defekt',      cls: 'bg-rose-100 text-rose-800' },
-    wartung:     { text: 'In Wartung',  cls: 'bg-amber-100 text-amber-800' },
+    verfuegbar:  { text: 'Verfügbar',   cls: 'text-ok' },
+    ausgeliehen: { text: 'Ausgeliehen', cls: 'text-lent' },
+    defekt:      { text: 'Defekt',      cls: 'text-broken' },
+    wartung:     { text: 'In Wartung',  cls: 'text-maint' },
   };
-  const m = map[status] || { text: status, cls: 'bg-slate-100 text-slate-800' };
-  return `<span class="inline-block px-2 py-1 rounded text-xs font-semibold ${m.cls}">${m.text}</span>`;
+  const m = map[status] || { text: status, cls: 'text-muted' };
+  return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-surface-2 ${m.cls}">` +
+         `<span class="text-[8px] leading-none">●</span>${m.text}</span>`;
 }
 
 export function formatDatum(iso) {
@@ -153,11 +160,11 @@ export function zeitseit(iso) {
 export function spinner() {
   return (
     '<div class="flex justify-center py-12">' +
-    '<div class="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full"></div>' +
+    '<div class="animate-spin h-10 w-10 border-4 border-accent border-t-transparent rounded-full"></div>' +
     '</div>'
   );
 }
 
 export function leerZustand(text) {
-  return `<div class="text-center py-12 text-slate-500">${escapeHtml(text)}</div>`;
+  return `<div class="text-center py-12 text-muted">${escapeHtml(text)}</div>`;
 }
