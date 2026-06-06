@@ -181,15 +181,16 @@ export async function renderMaschine(code) {
   }
 
   async function ausleihenKlick() {
-    let bezeichnungen = [];
-    if (maschine.zubehoer_liste.length) {
-      const auswahl = await ausleihZubehoerModal(maschine.zubehoer_liste);
-      if (auswahl === null) return;  // abgebrochen
-      bezeichnungen = auswahl;
-    }
+    let teams = [];
     try {
-      maschine = await api.post(`/api/maschinen/${maschine.id}/ausleihen`,
-        { zubehoer_bezeichnungen: bezeichnungen });
+      teams = await api.get('/api/maschinen/externe-teams');
+    } catch {
+      teams = [];  // Dropdown bleibt leer; freie Eingabe weiterhin möglich
+    }
+    const auswahl = await ausleihDialog(maschine.zubehoer_liste, teams);
+    if (auswahl === null) return;  // abgebrochen
+    try {
+      maschine = await api.post(`/api/maschinen/${maschine.id}/ausleihen`, auswahl);
       toast('Maschine erfolgreich ausgeliehen.', 'success');
       zeichne();
     } catch (err) {
@@ -222,39 +223,88 @@ export async function renderMaschine(code) {
   }
 }
 
-async function ausleihZubehoerModal(zubehoerListe) {
+async function ausleihDialog(zubehoerListe, bekannteTeams = []) {
   const body = document.createElement('div');
   body.innerHTML = `
-    <p class="text-sm text-slate-600 mb-3">Welches Zubehör nimmst du mit? Hake an, was du mitnimmst.</p>
-    <div class="space-y-2">
-      ${zubehoerListe.map((z) => `
-        <label class="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
-          <input type="checkbox" value="${escapeHtml(z.bezeichnung)}" class="w-5 h-5">
-          <span class="font-medium">${escapeHtml(z.bezeichnung)}</span>
-        </label>`).join('')}
-    </div>`;
+    <p class="text-sm font-medium text-slate-700 mb-2">Für wen leihst du aus?</p>
+    <div class="space-y-2 mb-3">
+      <label class="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+        <input type="radio" name="empf" value="mich" checked class="w-5 h-5">
+        <span class="font-medium">Für mich</span>
+      </label>
+      <label class="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+        <input type="radio" name="empf" value="team" class="w-5 h-5">
+        <span class="font-medium">Für externes Montageteam</span>
+      </label>
+    </div>
+    <div id="team-feld" class="mb-4 hidden">
+      <label class="block text-sm font-medium text-slate-700 mb-1" for="team-name">Team-Name</label>
+      <input id="team-name" list="team-liste" autocomplete="off"
+             class="w-full border border-slate-300 rounded-lg p-2 text-sm"
+             placeholder="Team auswählen oder neu eingeben">
+      <datalist id="team-liste">
+        ${bekannteTeams.map((t) => `<option value="${escapeHtml(t)}"></option>`).join('')}
+      </datalist>
+      <p id="team-fehler" class="text-sm text-rose-600 mt-1 hidden">
+        Bitte einen Team-Namen eingeben.
+      </p>
+    </div>
+    ${zubehoerListe.length ? `
+      <p class="text-sm text-slate-600 mb-2">Welches Zubehör nimmst du mit? Hake an, was du mitnimmst.</p>
+      <div class="space-y-2">
+        ${zubehoerListe.map((z) => `
+          <label class="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+            <input type="checkbox" value="${escapeHtml(z.bezeichnung)}" class="w-5 h-5">
+            <span class="font-medium">${escapeHtml(z.bezeichnung)}</span>
+          </label>`).join('')}
+      </div>` : ''}`;
+
+  // Team-Eingabefeld nur zeigen, wenn "externes Montageteam" gewählt ist.
+  body.querySelectorAll('input[name=empf]').forEach((r) => {
+    r.addEventListener('change', () => {
+      const istTeam = body.querySelector('input[name=empf]:checked').value === 'team';
+      body.querySelector('#team-feld').classList.toggle('hidden', !istTeam);
+    });
+  });
 
   const result = await modal({
-    titel: 'Zubehör mitnehmen',
+    titel: 'Maschine ausleihen',
     body,
     buttons: [
-      { label: 'Ausleihen', variant: 'success', value: 'go' },
+      {
+        label: 'Ausleihen',
+        variant: 'success',
+        value: 'go',
+        onClick: () => {
+          body.querySelector('#team-fehler').classList.add('hidden');
+          const istTeam = body.querySelector('input[name=empf]:checked').value === 'team';
+          if (istTeam && !body.querySelector('#team-name').value.trim()) {
+            body.querySelector('#team-fehler').classList.remove('hidden');
+            body.querySelector('#team-name').focus();
+            return false;  // Modal offen lassen
+          }
+          return true;
+        },
+      },
       { label: 'Abbrechen', variant: 'secondary', value: null },
     ],
   });
   if (result !== 'go') return null;
 
-  const checked = [...body.querySelectorAll('input[type=checkbox]:checked')]
+  const istTeam = body.querySelector('input[name=empf]:checked').value === 'team';
+  const externes_team = istTeam ? body.querySelector('#team-name').value.trim() : null;
+
+  const zubehoer_bezeichnungen = [...body.querySelectorAll('input[type=checkbox]:checked')]
     .map((c) => c.value);
 
-  if (checked.length === 0) {
+  if (zubehoerListe.length && zubehoer_bezeichnungen.length === 0) {
     const ok = await confirmDialog('Wirklich ohne Zubehör ausleihen?', {
       titel: 'Ohne Zubehör?',
       okLabel: 'Ja, ohne Zubehör',
     });
     if (!ok) return null;
   }
-  return checked;
+  return { zubehoer_bezeichnungen, externes_team };
 }
 
 async function rueckgabeModal(mitgenommen = []) {
