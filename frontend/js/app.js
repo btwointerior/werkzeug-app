@@ -120,7 +120,7 @@ function renderChrome() {
   bottomnav.querySelectorAll('[data-i]').forEach((b) => {
     const i = +b.dataset.i;
     b.onclick = () => {
-      if (links[i].action) links[i].action();
+      if (links[i].action) Promise.resolve(links[i].action()).catch((e) => console.error(e));
       else if (links[i].hash) location.hash = links[i].hash;
     };
   });
