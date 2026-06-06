@@ -1,7 +1,7 @@
 // Bootstrap, App-State, Hash-Router, Top-Bar + Bottom-Nav.
 
 import { api, getToken, clearToken } from './api.js';
-import { btnClasses, escapeHtml, modal, toast } from './ui.js';
+import { btnClasses, escapeHtml, logoMarkup, modal, toast } from './ui.js';
 
 import { renderLogin } from './views/login.js';
 import { renderMeine } from './views/meine.js';
@@ -43,8 +43,8 @@ async function route() {
   if (!eintrag) {
     document.getElementById('app').innerHTML = `
       <main class="max-w-md mx-auto pt-16 px-4 text-center">
-        <h1 class="text-xl font-semibold text-slate-900 mb-2">Seite nicht gefunden</h1>
-        <a href="#/" class="text-blue-600 underline">Zur Startseite</a>
+        <h1 class="text-xl font-semibold text-txt mb-2">Seite nicht gefunden</h1>
+        <a href="#/" class="text-accent underline">Zur Startseite</a>
       </main>`;
     renderChrome();
     return;
@@ -89,9 +89,12 @@ function renderChrome() {
   topbar.classList.remove('hidden');
   topbar.innerHTML = `
     <div class="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
-      <div class="font-semibold text-slate-900">Werkzeug-Ausleihe</div>
+      <div class="flex items-center gap-2">
+        ${logoMarkup('h-7 w-7 text-xs')}
+        <span class="font-semibold text-txt">Werkzeug-Ausleihe</span>
+      </div>
       <div class="flex items-center gap-3">
-        <span class="text-sm text-slate-600 hidden sm:inline">${escapeHtml(state.benutzer.voller_name)}</span>
+        <span class="text-sm text-muted hidden sm:inline">${escapeHtml(state.benutzer.voller_name)}</span>
         <button id="btn-logout" class="${btnClasses('ghost')} px-3 min-h-[40px] text-sm">Abmelden</button>
       </div>
     </div>`;
@@ -105,10 +108,10 @@ function renderChrome() {
 
   bottomnav.classList.remove('hidden');
   bottomnav.innerHTML = `
-    <div class="max-w-3xl mx-auto h-16 border-t border-slate-200 bg-white grid"
+    <div class="max-w-3xl mx-auto h-16 border-t border-border bg-bg grid"
          style="grid-template-columns: repeat(${links.length}, minmax(0, 1fr));">
       ${links.map((l, i) => `
-        <button data-i="${i}" class="flex flex-col items-center justify-center text-xs gap-1 text-slate-700 hover:bg-slate-50 active:bg-slate-100">
+        <button data-i="${i}" class="flex flex-col items-center justify-center text-xs gap-1 text-muted hover:bg-surface-2 active:bg-surface-2">
           <span class="text-xl leading-none">${l.icon}</span>
           <span>${l.label}</span>
         </button>`).join('')}
