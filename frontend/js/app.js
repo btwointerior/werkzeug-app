@@ -130,7 +130,7 @@ async function askCode() {
   input.type = 'text';
   input.placeholder = 'z.B. M-0001';
   input.className =
-    'w-full border border-slate-300 rounded-lg px-3 py-3 text-lg uppercase';
+    'w-full bg-surface text-txt placeholder:text-muted-2 border border-border rounded-xl px-3 py-3 text-lg uppercase';
   input.onkeydown = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
