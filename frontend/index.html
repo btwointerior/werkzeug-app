@@ -3,16 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#2563eb">
+  <meta name="theme-color" content="#0b0f1a">
   <title>Werkzeug-Ausleihe</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            bg: '#0b0f1a',
+            surface: '#151b2b',
+            'surface-2': '#1e2740',
+            border: '#1e2740',
+            accent: '#d4f000',
+            'accent-ink': '#0b0f1a',
+            txt: '#ffffff',
+            'txt-2': '#cbd5e1',
+            muted: '#94a3b8',
+            'muted-2': '#64748b',
+            ok: '#34d399',
+            lent: '#60a5fa',
+            broken: '#f87171',
+            maint: '#fbbf24',
+          },
+        },
+      },
+    };
+  </script>
   <style>
     html, body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; }
     /* iOS-Safari: Tap-Highlight reduzieren */
     button, a { -webkit-tap-highlight-color: transparent; }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-900 min-h-screen">
+<body class="bg-bg text-txt-2 min-h-screen">
   <header id="topbar" class="hidden sticky top-0 z-40 bg-white border-b border-slate-200"></header>
 
   <div id="app" class="min-h-[calc(100vh-8rem)]"></div>
