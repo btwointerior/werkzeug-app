@@ -26,22 +26,27 @@ Quelle: To-Do „DESIGN: Das komplette Design mit Claude-Front-Design überarbei
 
 Zentrale Werte, aus denen sich alles ableitet:
 
-| Token | Wert | Verwendung |
-|-------|------|------------|
+Die Spalte **Token** ist zugleich der Tailwind-Farbname (z. B. `bg-surface`,
+`text-txt-2`, `text-ok`) — eine einzige Quelle der Wahrheit.
+
+| Token (Tailwind-Name) | Wert | Verwendung |
+|-----------------------|------|------------|
 | `bg` (Grund) | `#0b0f1a` | Seitenhintergrund, Header, Bottom-Nav |
 | `surface` (Karte) | `#151b2b` | Karten, Modals, Eingabefelder |
 | `surface-2` | `#1e2740` | sekundäre Flächen / gefüllte Sekundär-Buttons |
 | `border` | `#1e2740` | Rahmen, Trennlinien |
-| `text` | `#ffffff` | Überschriften, primärer Text |
-| `text-2` | `#cbd5e1` | Fließtext |
+| `txt` | `#ffffff` | Überschriften, primärer Text |
+| `txt-2` | `#cbd5e1` | Fließtext |
 | `muted` | `#94a3b8` | Sekundärtext |
 | `muted-2` | `#64748b` | Labels, Platzhalter |
 | **`accent`** (Lime) | `#d4f000` | Marke, primäre Buttons, aktives Nav, Logo |
 | `accent-ink` | `#0b0f1a` | Text **auf** Lime (Buttons) |
-| Status verfügbar | `#34d399` (grün) | Badge, Statistik |
-| Status ausgeliehen | `#60a5fa` (blau) | Badge, Statistik |
-| Status defekt | `#f87171` (rot) | Badge, Statistik |
-| Status wartung | `#fbbf24` (gelb) | Badge, Statistik |
+| `ok` — verfügbar | `#34d399` (grün) | Badge, Statistik |
+| `lent` — ausgeliehen | `#60a5fa` (blau) | Badge, Statistik |
+| `broken` — defekt | `#f87171` (rot) | Badge, Statistik |
+| `maint` — wartung | `#fbbf24` (gelb) | Badge, Statistik |
+
+(`txt`/`txt-2` statt `text`, weil `text-` bereits ein Tailwind-Utility-Präfix ist.)
 
 **Grundsatz:** Lime ist ausschließlich Marke + Aktion. Die vier Status-Zustände
 haben eigene, davon klar unterscheidbare Farben — Lime ist **kein** Status.
