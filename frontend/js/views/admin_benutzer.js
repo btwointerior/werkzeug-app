@@ -48,27 +48,27 @@ export async function renderAdminBenutzer() {
           <div>
             <label class="block font-medium text-txt-2 mb-1">Benutzername *</label>
             <input id="bu-username" type="text"
-                   class="w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted-2">
+                   class="w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted">
           </div>
           <div>
             <label class="block font-medium text-txt-2 mb-1">Passwort *</label>
             <input id="bu-pw" type="password"
-                   class="w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted-2">
+                   class="w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted">
           </div>` : ''}
         <div>
           <label class="block font-medium text-txt-2 mb-1">Vorname *</label>
           <input id="bu-vorname" type="text" value="${escapeHtml(bestand?.vorname || '')}"
-                 class="w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted-2">
+                 class="w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted">
         </div>
         <div>
           <label class="block font-medium text-txt-2 mb-1">Nachname *</label>
           <input id="bu-nachname" type="text" value="${escapeHtml(bestand?.nachname || '')}"
-                 class="w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted-2">
+                 class="w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted">
         </div>
         <div>
           <label class="block font-medium text-txt-2 mb-1">E-Mail (optional)</label>
           <input id="bu-email" type="email" value="${escapeHtml(bestand?.email || '')}"
-                 class="w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted-2">
+                 class="w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted">
         </div>
         <div>
           <label class="block font-medium text-txt-2 mb-1">Rolle</label>
@@ -80,7 +80,7 @@ export async function renderAdminBenutzer() {
         ${!istNeu ? `
           <div>
             <label class="flex items-center gap-2">
-              <input id="bu-aktiv" type="checkbox" ${bestand.aktiv ? 'checked' : ''} class="w-5 h-5">
+              <input id="bu-aktiv" type="checkbox" ${bestand.aktiv ? 'checked' : ''} class="w-5 h-5 accent-accent">
               <span>Aktiv (Häkchen entfernen = sperren)</span>
             </label>
           </div>
@@ -89,7 +89,7 @@ export async function renderAdminBenutzer() {
               Neues Passwort (leer lassen = unverändert)
             </label>
             <input id="bu-pw-neu" type="password"
-                   class="w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted-2">
+                   class="w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted">
           </div>` : ''}
       </div>`;
 

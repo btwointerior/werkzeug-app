@@ -14,7 +14,7 @@ export async function renderMeine() {
         </label>
         <form id="code-form" class="flex gap-2">
           <input id="code-input" type="text" placeholder="z.B. M-0001"
-                 class="flex-1 border border-border rounded-lg px-3 py-3 text-base uppercase bg-surface text-txt placeholder:text-muted-2">
+                 class="flex-1 border border-border rounded-lg px-3 py-3 text-base uppercase bg-surface text-txt placeholder:text-muted">
           <button type="submit" class="${btnClasses('primary')} px-5">Öffnen</button>
         </form>
       </div>

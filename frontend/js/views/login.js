@@ -14,12 +14,12 @@ export async function renderLogin() {
           <div>
             <label class="block text-sm font-medium text-txt-2 mb-1" for="benutzername">Benutzername</label>
             <input id="benutzername" type="text" autocomplete="username" required
-                   class="w-full border border-border rounded-lg px-3 py-3 text-base bg-surface text-txt placeholder:text-muted-2">
+                   class="w-full border border-border rounded-lg px-3 py-3 text-base bg-surface text-txt placeholder:text-muted">
           </div>
           <div>
             <label class="block text-sm font-medium text-txt-2 mb-1" for="passwort">Passwort</label>
             <input id="passwort" type="password" autocomplete="current-password" required
-                   class="w-full border border-border rounded-lg px-3 py-3 text-base bg-surface text-txt placeholder:text-muted-2">
+                   class="w-full border border-border rounded-lg px-3 py-3 text-base bg-surface text-txt placeholder:text-muted">
           </div>
           <div id="login-fehler" class="text-sm text-rose-600 hidden"></div>
           <button type="submit" class="${btnClasses('primary')} w-full min-h-[56px] text-base font-semibold">

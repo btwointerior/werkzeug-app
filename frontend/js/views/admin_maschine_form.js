@@ -64,7 +64,7 @@ export async function renderAdminMaschineForm(maschineId) {
           <div>
             <label class="block text-sm font-medium text-txt-2 mb-1">Beschreibung</label>
             <textarea id="f-beschreibung" rows="3"
-                      class="w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted-2">${escapeHtml(daten.beschreibung)}</textarea>
+                      class="w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted">${escapeHtml(daten.beschreibung)}</textarea>
           </div>
           <div>
             <label class="block text-sm font-medium text-txt-2 mb-1">Zubehör</label>
@@ -105,7 +105,7 @@ export async function renderAdminMaschineForm(maschineId) {
       zList.innerHTML = daten.zubehoer.map((z, i) => `
         <div class="flex gap-2">
           <input data-z="${i}" type="text" value="${escapeHtml(z)}"
-                 class="flex-1 border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted-2">
+                 class="flex-1 border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted">
           <button type="button" data-zdel="${i}"
                   class="${btnClasses('danger')} px-3 text-sm">×</button>
         </div>`).join('');
@@ -220,7 +220,7 @@ export async function renderAdminMaschineForm(maschineId) {
   // -----------------------------------------------------------
 
   function feldText(name, label, val, opt = {}) {
-    const cls = `w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted-2${opt.uppercase ? ' uppercase' : ''}`;
+    const cls = `w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted${opt.uppercase ? ' uppercase' : ''}`;
     return `
       <div>
         <label class="block text-sm font-medium text-txt-2 mb-1" for="f-${name}">

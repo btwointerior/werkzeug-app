@@ -15,7 +15,7 @@ export async function renderAdminMaschinen() {
       </div>
       <div class="flex gap-2 mb-4">
         <input id="filter-suche" placeholder="Suche..."
-               class="flex-1 border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted-2">
+               class="flex-1 border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted">
         <select id="filter-status" class="border border-border rounded-lg px-3 py-2 bg-surface text-txt">
           <option value="">Alle Status</option>
           <option value="verfuegbar">Verfügbar</option>
@@ -85,7 +85,7 @@ export async function renderAdminMaschinen() {
           <div class="flex items-start gap-3">
             <label class="flex items-center pt-1 cursor-pointer">
               <input type="checkbox" data-sel="${m.id}" ${auswahl.has(m.id) ? 'checked' : ''}
-                     class="w-5 h-5">
+                     class="w-5 h-5 accent-accent">
             </label>
             <a href="#/m/${encodeURIComponent(m.maschinen_code)}" class="flex-1 min-w-0">
               <div class="font-semibold text-txt truncate">${escapeHtml(m.name)}</div>

@@ -240,7 +240,7 @@ async function ausleihDialog(zubehoerListe, bekannteTeams = []) {
     <div id="team-feld" class="mb-4 hidden">
       <label class="block text-sm font-medium text-txt-2 mb-1" for="team-name">Team-Name</label>
       <input id="team-name" list="team-liste" autocomplete="off"
-             class="w-full border border-border rounded-lg p-2 text-sm bg-surface text-txt placeholder:text-muted-2"
+             class="w-full border border-border rounded-lg p-2 text-sm bg-surface text-txt placeholder:text-muted"
              placeholder="Team auswählen oder neu eingeben">
       <datalist id="team-liste">
         ${bekannteTeams.map((t) => `<option value="${escapeHtml(t)}"></option>`).join('')}
@@ -254,7 +254,7 @@ async function ausleihDialog(zubehoerListe, bekannteTeams = []) {
       <div class="space-y-2">
         ${zubehoerListe.map((z) => `
           <label class="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-surface-2">
-            <input type="checkbox" value="${escapeHtml(z.bezeichnung)}" class="w-5 h-5">
+            <input type="checkbox" value="${escapeHtml(z.bezeichnung)}" class="w-5 h-5 accent-accent">
             <span class="font-medium">${escapeHtml(z.bezeichnung)}</span>
           </label>`).join('')}
       </div>` : ''}`;
@@ -331,7 +331,7 @@ async function rueckgabeModal(mitgenommen = []) {
         <div class="space-y-2">
           ${mitgenommen.map((z) => `
             <label class="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-surface-2">
-              <input type="checkbox" data-zid="${z.id}" checked class="w-5 h-5">
+              <input type="checkbox" data-zid="${z.id}" checked class="w-5 h-5 accent-accent">
               <span class="text-sm">${escapeHtml(z.bezeichnung)}</span>
             </label>`).join('')}
         </div>
@@ -341,7 +341,7 @@ async function rueckgabeModal(mitgenommen = []) {
       Es fehlt Zubehör — bitte im Kommentar angeben, was los ist.
     </p>
     <textarea id="r-komm" rows="3"
-              class="w-full border border-border rounded-lg p-2 text-sm bg-surface text-txt placeholder:text-muted-2"
+              class="w-full border border-border rounded-lg p-2 text-sm bg-surface text-txt placeholder:text-muted"
               placeholder="Was ist passiert?"></textarea>`;
 
   const result = await modal({
