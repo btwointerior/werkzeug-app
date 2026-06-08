@@ -23,3 +23,10 @@ def test_maschinen_endpunkt_leakt_kein_klartext(db, client):
     r = client.get("/api/maschinen", headers=auth_header(user))
     assert r.status_code == 200
     assert "passwort_klartext" not in r.text
+
+
+def test_me_endpunkt_leakt_kein_klartext(db, client):
+    user = make_user(db, "ich", passwort="geheim")
+    r = client.get("/api/me", headers=auth_header(user))
+    assert r.status_code == 200
+    assert "passwort_klartext" not in r.text
