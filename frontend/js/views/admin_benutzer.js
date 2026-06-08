@@ -27,11 +27,31 @@ export async function renderAdminBenutzer() {
             <div class="text-sm text-muted truncate">
               ${escapeHtml(b.benutzername)} · ${escapeHtml(b.rolle)}${b.aktiv ? '' : ' · <span class="text-rose-600 font-medium">gesperrt</span>'}
             </div>
+            <div class="text-sm text-muted mt-1 flex items-center gap-2">
+              <span>Passwort:</span>
+              ${b.passwort_klartext
+                ? `<span data-pw="${b.id}" class="font-mono">••••••••</span>
+                   <button data-pwtoggle="${b.id}" data-shown="0"
+                           class="text-accent text-xs underline">anzeigen</button>`
+                : `<span class="italic">— (vor Umstellung gesetzt)</span>`}
+            </div>
           </div>
           <button data-id="${b.id}" class="${btnClasses('secondary')} text-sm flex-shrink-0">Bearbeiten</button>
         </div>`).join('');
       liste.querySelectorAll('[data-id]').forEach((btn) => {
         btn.onclick = () => oeffneFormular(benutzer.find((x) => x.id === +btn.dataset.id));
+      });
+      liste.querySelectorAll('[data-pwtoggle]').forEach((btn) => {
+        btn.onclick = () => {
+          const id = +btn.dataset.pwtoggle;
+          const span = liste.querySelector(`[data-pw="${id}"]`);
+          const b = benutzer.find((x) => x.id === id);
+          if (!span || !b) return;
+          const shown = btn.dataset.shown === '1';
+          span.textContent = shown ? '••••••••' : (b.passwort_klartext || '');
+          btn.textContent = shown ? 'anzeigen' : 'verbergen';
+          btn.dataset.shown = shown ? '0' : '1';
+        };
       });
     } catch (err) {
       document.getElementById('liste').innerHTML =
