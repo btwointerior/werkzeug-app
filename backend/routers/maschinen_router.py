@@ -73,6 +73,17 @@ def maschine_per_code(
     return maschine_zu_out(maschine, current_user.id)
 
 
+@router.get("", response_model=list[MaschineOut])
+def alle_maschinen(
+    current_user: Benutzer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[MaschineOut]:
+    """Geräte-Übersicht: komplette Maschinenliste für eingeloggte Nutzer.
+    Suche/Status-Filter laufen client-seitig, daher hier keine Query-Parameter."""
+    maschinen = db.query(Maschine).order_by(Maschine.maschinen_code).all()
+    return [maschine_zu_out(m, current_user.id) for m in maschinen]
+
+
 @router.post("/{maschine_id}/ausleihen", response_model=MaschineOut)
 def maschine_ausleihen(
     maschine_id: int,
