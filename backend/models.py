@@ -59,6 +59,11 @@ class Benutzer(Base):
     vorname = Column(String(50), nullable=False)
     nachname = Column(String(50), nullable=False)
     passwort_hash = Column(String(255), nullable=False)
+    # ACHTUNG: Klartext-Passwort auf ausdrücklichen Wunsch des Betreibers, damit Admins es
+    # ansehen können. Bewusst gegen die Sicherheitsempfehlung: bei einem DB-/Backup-Leak
+    # liegen alle so gespeicherten Passwörter offen. Nur ab Einführung neu gesetzte Passwörter
+    # sind befüllt (Alt-Hashes sind nicht rückrechenbar).
+    passwort_klartext = Column(String(255), nullable=True)
     rolle = Column(SQLEnum(Rolle), default=Rolle.MITARBEITER, nullable=False)
     email = Column(String(120), nullable=True)  # für Erinnerungs-Mails
     aktiv = Column(Boolean, default=True, nullable=False)
@@ -72,8 +77,10 @@ class Benutzer(Base):
         return f"{self.vorname} {self.nachname}"
 
     def setze_passwort(self, klartext: str) -> None:
-        """Passwort als Hash speichern (niemals im Klartext!)."""
+        """Passwort als Hash speichern (für die Anmeldung maßgeblich) UND zusätzlich im
+        Klartext (siehe passwort_klartext) für die Admin-Anzeige."""
         self.passwort_hash = pwd_context.hash(klartext)
+        self.passwort_klartext = klartext
 
     def pruefe_passwort(self, klartext: str) -> bool:
         """Eingegebenes Passwort gegen Hash prüfen."""

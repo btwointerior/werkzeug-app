@@ -191,6 +191,7 @@ class BenutzerOut(_ORM):
     rolle: Rolle
     email: Optional[str] = None
     aktiv: bool
+    passwort_klartext: Optional[str] = None
     erstellt_am: datetime
 
 
