@@ -2,6 +2,7 @@ import { api, oeffneBlobImNeuenTab } from '../api.js';
 import {
   btnClasses, confirmDialog, escapeHtml, spinner, statusBadge, toast,
 } from '../ui.js';
+import { filterMaschinen } from '../filter.js';
 
 export async function renderAdminMaschinen() {
   const app = document.getElementById('app');
@@ -68,85 +69,87 @@ export async function renderAdminMaschinen() {
     cnt.textContent = `${auswahl.size} Maschine${auswahl.size === 1 ? '' : 'n'} ausgewählt`;
   }
 
-  let timer;
-  const lade = async () => {
-    const params = new URLSearchParams();
-    if (suche.value.trim()) params.set('suche', suche.value.trim());
-    if (stat.value)         params.set('status', stat.value);
+  let alle = [];
 
-    try {
-      const maschinen = await api.get(`/api/admin/maschinen?${params}`);
-      if (!maschinen.length) {
-        liste.innerHTML = '<div class="text-center py-12 text-muted">Keine Treffer.</div>';
-        return;
-      }
-      liste.innerHTML = maschinen.map((m) => `
-        <div class="bg-surface border border-border rounded-lg p-3 mb-2">
-          <div class="flex items-start gap-3">
-            <label class="flex items-center pt-1 cursor-pointer">
-              <input type="checkbox" data-sel="${m.id}" ${auswahl.has(m.id) ? 'checked' : ''}
-                     class="w-5 h-5 accent-accent">
-            </label>
-            <a href="#/m/${encodeURIComponent(m.maschinen_code)}" class="flex-1 min-w-0">
-              <div class="font-semibold text-txt truncate">${escapeHtml(m.name)}</div>
-              <div class="text-sm text-muted truncate">
-                ${escapeHtml(m.maschinen_code)}${m.platznummer ? ` · ${escapeHtml(m.platznummer)}` : ''}
-              </div>
-            </a>
-            <div class="flex-shrink-0">${statusBadge(m.status)}</div>
-          </div>
-          <div class="flex gap-2 mt-3 flex-wrap">
-            <a href="#/admin/maschinen/${m.id}/edit" class="${btnClasses('secondary')} text-sm">Bearbeiten</a>
-            <a href="#/admin/maschinen/${m.id}/historie" class="${btnClasses('secondary')} text-sm">Historie</a>
-            <button data-qr="${m.id}" class="${btnClasses('secondary')} text-sm">QR-Code</button>
-            <button data-del="${m.id}" data-name="${escapeHtml(m.name)}"
-                    class="${btnClasses('danger')} text-sm ml-auto">Löschen</button>
-          </div>
-        </div>`).join('');
+  const zeige = () => {
+    const maschinen = filterMaschinen(alle, { suche: suche.value, status: stat.value });
+    if (!maschinen.length) {
+      liste.innerHTML = '<div class="text-center py-12 text-muted">Keine Treffer.</div>';
+      return;
+    }
+    liste.innerHTML = maschinen.map((m) => `
+      <div class="bg-surface border border-border rounded-lg p-3 mb-2">
+        <div class="flex items-start gap-3">
+          <label class="flex items-center pt-1 cursor-pointer">
+            <input type="checkbox" data-sel="${m.id}" ${auswahl.has(m.id) ? 'checked' : ''}
+                   class="w-5 h-5 accent-accent">
+          </label>
+          <a href="#/m/${encodeURIComponent(m.maschinen_code)}" class="flex-1 min-w-0">
+            <div class="font-semibold text-txt truncate">${escapeHtml(m.name)}</div>
+            <div class="text-sm text-muted truncate">
+              ${escapeHtml(m.maschinen_code)}${m.platznummer ? ` · ${escapeHtml(m.platznummer)}` : ''}
+            </div>
+          </a>
+          <div class="flex-shrink-0">${statusBadge(m.status)}</div>
+        </div>
+        <div class="flex gap-2 mt-3 flex-wrap">
+          <a href="#/admin/maschinen/${m.id}/edit" class="${btnClasses('secondary')} text-sm">Bearbeiten</a>
+          <a href="#/admin/maschinen/${m.id}/historie" class="${btnClasses('secondary')} text-sm">Historie</a>
+          <button data-qr="${m.id}" class="${btnClasses('secondary')} text-sm">QR-Code</button>
+          <button data-del="${m.id}" data-name="${escapeHtml(m.name)}"
+                  class="${btnClasses('danger')} text-sm ml-auto">Löschen</button>
+        </div>
+      </div>`).join('');
 
-      liste.querySelectorAll('input[data-sel]').forEach((c) => {
-        c.onchange = () => {
-          const id = +c.dataset.sel;
-          if (c.checked) auswahl.add(id);
-          else auswahl.delete(id);
+    liste.querySelectorAll('input[data-sel]').forEach((c) => {
+      c.onchange = () => {
+        const id = +c.dataset.sel;
+        if (c.checked) auswahl.add(id);
+        else auswahl.delete(id);
+        aktualisiereBar();
+      };
+    });
+
+    liste.querySelectorAll('[data-qr]').forEach((b) => {
+      b.onclick = async () => {
+        try {
+          await oeffneBlobImNeuenTab(`/api/admin/maschinen/${b.dataset.qr}/qr-code`);
+        } catch (err) {
+          toast(err.detail || 'QR-Code-Fehler.', 'error');
+        }
+      };
+    });
+
+    liste.querySelectorAll('[data-del]').forEach((b) => {
+      b.onclick = async () => {
+        const ok = await confirmDialog(
+          `Maschine "${b.dataset.name}" wirklich löschen?`,
+          { dangerous: true, okLabel: 'Löschen' },
+        );
+        if (!ok) return;
+        try {
+          await api.del(`/api/admin/maschinen/${b.dataset.del}`);
+          toast('Maschine gelöscht.', 'success');
+          auswahl.delete(+b.dataset.del);
           aktualisiereBar();
-        };
-      });
+          ladeAlle();
+        } catch (err) {
+          toast(err.detail || 'Löschen fehlgeschlagen.', 'error');
+        }
+      };
+    });
+  };
 
-      liste.querySelectorAll('[data-qr]').forEach((b) => {
-        b.onclick = async () => {
-          try {
-            await oeffneBlobImNeuenTab(`/api/admin/maschinen/${b.dataset.qr}/qr-code`);
-          } catch (err) {
-            toast(err.detail || 'QR-Code-Fehler.', 'error');
-          }
-        };
-      });
-
-      liste.querySelectorAll('[data-del]').forEach((b) => {
-        b.onclick = async () => {
-          const ok = await confirmDialog(
-            `Maschine "${b.dataset.name}" wirklich löschen?`,
-            { dangerous: true, okLabel: 'Löschen' },
-          );
-          if (!ok) return;
-          try {
-            await api.del(`/api/admin/maschinen/${b.dataset.del}`);
-            toast('Maschine gelöscht.', 'success');
-            auswahl.delete(+b.dataset.del);
-            aktualisiereBar();
-            lade();
-          } catch (err) {
-            toast(err.detail || 'Löschen fehlgeschlagen.', 'error');
-          }
-        };
-      });
+  const ladeAlle = async () => {
+    try {
+      alle = await api.get('/api/admin/maschinen');
+      zeige();
     } catch (err) {
       liste.innerHTML = `<div class="text-rose-600 p-4">${escapeHtml(err.detail)}</div>`;
     }
   };
 
-  suche.oninput = () => { clearTimeout(timer); timer = setTimeout(lade, 250); };
-  stat.onchange = lade;
-  lade();
+  suche.oninput = zeige;
+  stat.onchange = zeige;
+  ladeAlle();
 }
