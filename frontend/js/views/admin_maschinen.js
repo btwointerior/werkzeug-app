@@ -145,7 +145,7 @@ export async function renderAdminMaschinen() {
       alle = await api.get('/api/admin/maschinen');
       zeige();
     } catch (err) {
-      liste.innerHTML = `<div class="text-rose-600 p-4">${escapeHtml(err.detail)}</div>`;
+      liste.innerHTML = `<div class="text-rose-600 p-4">${escapeHtml(err.detail || 'Fehler beim Laden.')}</div>`;
     }
   };
 
