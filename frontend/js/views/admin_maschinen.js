@@ -45,7 +45,7 @@ export async function renderAdminMaschinen() {
   document.getElementById('sammel-clear').onclick = () => {
     auswahl.clear();
     aktualisiereBar();
-    document.querySelectorAll('input[data-sel]').forEach((c) => { c.checked = false; });
+    liste.querySelectorAll('input[data-sel]').forEach((c) => { c.checked = false; });
   };
   document.getElementById('sammel-druck').onclick = async () => {
     if (!auswahl.size) return;

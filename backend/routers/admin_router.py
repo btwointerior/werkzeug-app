@@ -6,10 +6,10 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import (
-    APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status,
+    APIRouter, Depends, File, HTTPException, Response, UploadFile, status,
 )
 from PIL import Image, UnidentifiedImageError
-from sqlalchemy import func, or_
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from backend import qr
@@ -77,26 +77,13 @@ def _loesche_datei(name: Optional[str]) -> None:
 
 @router.get("/maschinen", response_model=list[MaschineOut])
 def maschinen_liste(
-    status_filter: Optional[MaschinenStatus] = Query(None, alias="status"),
-    suche: Optional[str] = Query(None, description="Suche in Name, Code, Seriennummer"),
     db: Session = Depends(get_db),
     current_user: Benutzer = Depends(require_admin),
 ) -> list[MaschineOut]:
-    """Listet alle Maschinen, optional gefiltert nach Status und Suchbegriff."""
-    query = db.query(Maschine)
-    if status_filter is not None:
-        query = query.filter(Maschine.status == status_filter)
-    if suche:
-        muster = f"%{suche}%"
-        query = query.filter(
-            or_(
-                Maschine.name.ilike(muster),
-                Maschine.maschinen_code.ilike(muster),
-                Maschine.seriennummer.ilike(muster),
-            )
-        )
-    return [maschine_zu_out(m, current_user.id)
-            for m in query.order_by(Maschine.maschinen_code).all()]
+    """Listet alle Maschinen. Suche/Status-Filter erfolgen client-seitig
+    (frontend/js/filter.js), daher keine Query-Parameter."""
+    maschinen = db.query(Maschine).order_by(Maschine.maschinen_code).all()
+    return [maschine_zu_out(m, current_user.id) for m in maschinen]
 
 
 @router.post(

@@ -48,7 +48,7 @@ export async function renderAdminBenutzer() {
           const b = benutzer.find((x) => x.id === id);
           if (!span || !b) return;
           const shown = btn.dataset.shown === '1';
-          span.textContent = shown ? '••••••••' : (b.passwort_klartext || '');
+          span.textContent = shown ? '••••••••' : b.passwort_klartext;
           btn.textContent = shown ? 'anzeigen' : 'verbergen';
           btn.dataset.shown = shown ? '0' : '1';
         };
