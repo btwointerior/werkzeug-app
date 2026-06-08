@@ -2,9 +2,11 @@
 
 import { api, getToken, clearToken } from './api.js';
 import { btnClasses, escapeHtml, logoMarkup, modal, toast } from './ui.js';
+import { scanQr } from './scanner.js';
 
 import { renderLogin } from './views/login.js';
 import { renderMeine } from './views/meine.js';
+import { renderGeraete } from './views/geraete.js';
 import { renderMaschine } from './views/maschine.js';
 import { renderAdminDashboard } from './views/admin_dashboard.js';
 import { renderAdminMaschinen } from './views/admin_maschinen.js';
@@ -27,6 +29,7 @@ const ROUTEN = [
                                   : '#/login' },
   { pattern: /^#\/login$/, public: true, view: renderLogin },
   { pattern: /^#\/meine$/, view: renderMeine },
+  { pattern: /^#\/geraete$/, view: renderGeraete },
   { pattern: /^#\/m\/(.+)$/, view: (m) => renderMaschine(decodeURIComponent(m[1])) },
   { pattern: /^#\/admin$/, admin: true, view: renderAdminDashboard },
   { pattern: /^#\/admin\/maschinen$/, admin: true, view: renderAdminMaschinen },
@@ -101,8 +104,9 @@ function renderChrome() {
   document.getElementById('btn-logout').onclick = logout;
 
   const links = [
-    { hash: '#/meine', label: 'Meine', icon: '📋' },
-    { label: 'Code',   icon: '🔍', action: askCode },
+    { hash: '#/geraete', label: 'Geräte', icon: '🔧' },
+    { hash: '#/meine',   label: 'Meine',  icon: '📋' },
+    { label: 'Code',     icon: '🔍', action: scanOrAsk },
   ];
   if (state.istAdmin) links.push({ hash: '#/admin', label: 'Admin', icon: '⚙️' });
 
@@ -119,10 +123,16 @@ function renderChrome() {
   bottomnav.querySelectorAll('[data-i]').forEach((b) => {
     const i = +b.dataset.i;
     b.onclick = () => {
-      if (links[i].action) links[i].action();
+      if (links[i].action) Promise.resolve(links[i].action()).catch((e) => console.error(e));
       else if (links[i].hash) location.hash = links[i].hash;
     };
   });
+}
+
+async function scanOrAsk() {
+  const code = await scanQr();
+  if (code) location.hash = `#/m/${encodeURIComponent(code)}`;
+  else await askCode();   // Abbruch/Kamera nicht möglich → manuelle Eingabe
 }
 
 async function askCode() {
