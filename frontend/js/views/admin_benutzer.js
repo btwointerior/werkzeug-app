@@ -171,7 +171,10 @@ export async function renderAdminBenutzer() {
       titel: 'Mitarbeiter löschen',
       body: `<p class="text-sm text-txt-2">Mitarbeiter
              <strong>${escapeHtml(bestand.voller_name)}</strong>
-             wirklich endgültig löschen?</p>`,
+             wirklich endgültig löschen?</p>
+             <p class="text-sm text-txt-2 mt-2">Dabei wird auch die komplette
+             Ausleih-Historie dieses Mitarbeiters entfernt. Das kann nicht
+             rückgängig gemacht werden.</p>`,
       buttons: [
         { label: 'Endgültig löschen', variant: 'danger',    value: 'ok' },
         { label: 'Abbrechen',         variant: 'secondary', value: null },
@@ -184,7 +187,7 @@ export async function renderAdminBenutzer() {
       toast('Mitarbeiter gelöscht.', 'success');
       lade();
     } catch (err) {
-      // z.B. 409: "… hat Ausleih-Historie … Bitte stattdessen sperren."
+      // z.B. 409: "… hat noch eine offene Ausleihe … zuerst Rückgabe buchen."
       toast(err.detail || 'Löschen fehlgeschlagen.', 'error');
     }
   }

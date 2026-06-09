@@ -2,7 +2,14 @@
 
 from datetime import datetime, timezone
 
-from backend.models import Ausleihe, Benutzer, Maschine, MaschinenStatus, Rolle
+from backend.models import (
+    Ausleihe,
+    Benutzer,
+    Maschine,
+    MaschinenStatus,
+    Rolle,
+    RueckgabeZustand,
+)
 
 from .conftest import auth_header, make_user
 
@@ -26,13 +33,44 @@ def test_selbst_loeschen_verboten(client, db):
     assert db.query(Benutzer).filter(Benutzer.id == admin.id).first() is not None
 
 
-def test_mitarbeiter_mit_ausleihe_nicht_loeschbar(client, db):
+def test_mitarbeiter_mit_abgeschlossener_historie_wird_hart_geloescht(client, db):
+    """Admin darf einen Benutzer mit abgeschlossener Historie endgültig löschen –
+    dabei werden auch dessen Ausleih-Einträge mitgelöscht (Hard-Delete)."""
     admin = make_user(db, "admin", rolle=Rolle.ADMIN)
     ziel = make_user(db, "max")
     maschine = Maschine(
         maschinen_code="M-0001",
         name="Bohrmaschine",
         status=MaschinenStatus.VERFUEGBAR,
+    )
+    db.add(maschine)
+    db.commit()
+    db.refresh(maschine)
+    db.add(Ausleihe(
+        maschine_id=maschine.id,
+        benutzer_id=ziel.id,
+        ausleih_zeitpunkt=datetime.now(timezone.utc),
+        rueckgabe_zeitpunkt=datetime.now(timezone.utc),
+        rueckgabe_zustand=RueckgabeZustand.OK,
+    ))
+    db.commit()
+
+    r = client.delete(f"/api/admin/benutzer/{ziel.id}", headers=auth_header(admin))
+
+    assert r.status_code == 204
+    assert db.query(Benutzer).filter(Benutzer.id == ziel.id).first() is None
+    # Historie des Benutzers ist mitgelöscht
+    assert db.query(Ausleihe).filter(Ausleihe.benutzer_id == ziel.id).count() == 0
+
+
+def test_mitarbeiter_mit_offener_ausleihe_nicht_loeschbar(client, db):
+    """Solange eine Maschine noch offen ausgeliehen ist, bleibt das Löschen gesperrt."""
+    admin = make_user(db, "admin", rolle=Rolle.ADMIN)
+    ziel = make_user(db, "max")
+    maschine = Maschine(
+        maschinen_code="M-0001",
+        name="Bohrmaschine",
+        status=MaschinenStatus.AUSGELIEHEN,
     )
     db.add(maschine)
     db.commit()

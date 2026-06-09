@@ -464,10 +464,13 @@ def benutzer_loeschen(
     db: Session = Depends(get_db),
     current_user: Benutzer = Depends(require_admin),
 ) -> None:
-    """Löscht einen Mitarbeiter endgültig.
+    """Löscht einen Mitarbeiter endgültig (Hard-Delete).
 
-    Nur erlaubt, wenn er keine Ausleih-Historie hat – sonst 409 (stattdessen
-    sperren), damit die Historie lückenlos bleibt. Selbst-Löschen ist verboten.
+    Der System-Administrator darf einen Benutzer auch dann endgültig löschen,
+    wenn bereits abgeschlossene Ausleih-Historie vorhanden ist – diese wird dabei
+    mitgelöscht. Blockiert wird nur, wenn der Benutzer noch eine *offene* Ausleihe
+    hat (Maschine aktuell ausgeliehen); dann muss zuerst die Rückgabe gebucht
+    werden. Selbst-Löschen ist verboten.
     """
     benutzer = db.query(Benutzer).filter(Benutzer.id == benutzer_id).first()
     if benutzer is None:
@@ -479,17 +482,28 @@ def benutzer_loeschen(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Sie können sich nicht selbst löschen.",
         )
-    hat_ausleihen = (
-        db.query(Ausleihe).filter(Ausleihe.benutzer_id == benutzer.id).first()
+    hat_offene_ausleihe = (
+        db.query(Ausleihe)
+        .filter(
+            Ausleihe.benutzer_id == benutzer.id,
+            Ausleihe.rueckgabe_zeitpunkt.is_(None),
+        )
+        .first()
     )
-    if hat_ausleihen is not None:
+    if hat_offene_ausleihe is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
-                "Mitarbeiter hat Ausleih-Historie und kann nicht gelöscht werden. "
-                "Bitte stattdessen sperren."
+                "Mitarbeiter hat noch eine offene Ausleihe und kann nicht gelöscht "
+                "werden. Bitte zuerst die Rückgabe der Maschine(n) buchen."
             ),
         )
+    # Hard-Delete: abgeschlossene Ausleih-Historie des Benutzers mitlöschen
+    # (AusleiheZubehoer hängt per Cascade an Ausleihe und wird mitentfernt).
+    for ausleihe in (
+        db.query(Ausleihe).filter(Ausleihe.benutzer_id == benutzer.id).all()
+    ):
+        db.delete(ausleihe)
     db.delete(benutzer)
     db.commit()
 
