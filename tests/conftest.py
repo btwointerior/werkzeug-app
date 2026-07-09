@@ -11,6 +11,16 @@ from backend.main import app
 from backend.models import Base, Benutzer, Rolle, get_db
 
 
+@pytest.fixture(autouse=True)
+def _reset_rate_limit():
+    """Login-Drossel vor/nach jedem Test leeren (sonst leakt Zustand zwischen Tests)."""
+    from backend import rate_limit
+
+    rate_limit._reset_all()
+    yield
+    rate_limit._reset_all()
+
+
 @pytest.fixture()
 def db():
     """Frische In-Memory-DB pro Test (StaticPool -> eine geteilte Verbindung)."""

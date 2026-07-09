@@ -9,7 +9,7 @@
 import { api } from '../api.js';
 import { state } from '../app.js';
 import {
-  btnClasses, confirmDialog, escapeHtml, modal, spinner, statusBadge, toast, zeitseit,
+  btnClasses, confirmDialog, escapeHtml, modal, safeUrl, spinner, statusBadge, toast, zeitseit,
 } from '../ui.js';
 
 export async function renderMaschine(code) {
@@ -79,7 +79,7 @@ export async function renderMaschine(code) {
           </div>` : ''}
 
         ${m.foto_url ? `
-          <img src="${escapeHtml(m.foto_url)}" alt="${escapeHtml(m.name)}"
+          <img src="${escapeHtml(safeUrl(m.foto_url))}" alt="${escapeHtml(m.name)}"
                class="w-full aspect-video object-contain bg-surface-2 border border-border rounded-lg mb-4">
         ` : `
           <div class="bg-surface-2 border border-border rounded-lg aspect-video flex items-center justify-center text-muted mb-4">
@@ -114,7 +114,7 @@ export async function renderMaschine(code) {
           </div>` : ''}
 
         ${m.anleitung_url ? `
-          <a href="${escapeHtml(m.anleitung_url)}" target="_blank" rel="noopener"
+          <a href="${escapeHtml(safeUrl(m.anleitung_url))}" target="_blank" rel="noopener"
              class="${btnClasses('secondary')} w-full mb-4">
             📄 Betriebsanleitung öffnen
           </a>
@@ -133,7 +133,16 @@ export async function renderMaschine(code) {
 
     if (aktion.id && aktion.handler) {
       const btn = document.getElementById(aktion.id);
-      if (btn) btn.onclick = aktion.handler;
+      if (btn) btn.onclick = async () => {
+        // Doppelklick-Schutz: keine doppelten Ausleih-/Rückgabe-Posts.
+        if (btn.disabled) return;
+        btn.disabled = true;
+        try {
+          await aktion.handler();
+        } finally {
+          btn.disabled = false;  // (Button ist nach zeichne() oft ohnehin ersetzt)
+        }
+      };
     }
   }
 
