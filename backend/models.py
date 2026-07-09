@@ -12,14 +12,35 @@ Tabellen:
 from datetime import datetime, timezone
 from enum import Enum
 from sqlalchemy import (
-    create_engine, Column, Integer, String, DateTime,
-    ForeignKey, Boolean, Text, Enum as SQLEnum
+    create_engine, event, text, Column, Integer, String, DateTime,
+    ForeignKey, Boolean, Text, Enum as SQLEnum, Index
 )
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 from passlib.context import CryptContext
 
 Base = declarative_base()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def _naiv(dt: datetime | None) -> datetime | None:
+    """Entfernt die Zeitzoneninfo (auf naiv), damit naive/aware nicht gemischt werden."""
+    if dt is not None and dt.tzinfo is not None:
+        return dt.replace(tzinfo=None)
+    return dt
+
+
+@event.listens_for(Engine, "connect")
+def _sqlite_fk_pragma(dbapi_connection, connection_record):
+    """Aktiviert Foreign-Key-Enforcement für SQLite (standardmäßig AUS).
+
+    Ohne dieses PRAGMA greifen die ondelete-Kaskaden nicht. Gilt für alle
+    SQLite-Verbindungen (App und Tests); andere Backends bleiben unberührt.
+    """
+    if dbapi_connection.__class__.__module__.startswith("sqlite3"):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
 
 # --------------------------------------------------------------------
@@ -69,8 +90,15 @@ class Benutzer(Base):
     aktiv = Column(Boolean, default=True, nullable=False)
     erstellt_am = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
-    # Beziehung: alle Ausleihen dieses Nutzers
-    ausleihen = relationship("Ausleihe", back_populates="benutzer")
+    # Beziehung: alle Ausleihen dieses Nutzers.
+    # KEIN passive_deletes: das ORM löscht die Kinder selbst, damit das Löschen
+    # auch auf der Alt-Prod-DB funktioniert (deren Tabellen tragen die
+    # ondelete-CASCADE-Regel nicht; create_all zieht sie nicht nach).
+    ausleihen = relationship(
+        "Ausleihe",
+        back_populates="benutzer",
+        cascade="all, delete-orphan",
+    )
 
     @property
     def voller_name(self) -> str:
@@ -140,6 +168,9 @@ class Maschine(Base):
         "Ausleihe",
         back_populates="maschine",
         order_by="Ausleihe.ausleih_zeitpunkt.desc()",
+        # KEIN passive_deletes (siehe Benutzer.ausleihen): ORM löscht die Historie
+        # selbst, damit das Löschen auf der Alt-Prod-DB ohne DB-Kaskade klappt.
+        cascade="all, delete-orphan",
     )
 
     @property
@@ -196,16 +227,30 @@ class Zubehoer(Base):
 class Ausleihe(Base):
     __tablename__ = "ausleihen"
 
+    # Absicherung gegen die Doppel-Ausleihe-Race: pro Maschine darf höchstens
+    # eine Ausleihe offen sein (rueckgabe_zeitpunkt IS NULL). Der Statuscheck im
+    # Router allein reicht bei parallelen Requests nicht — dieser partielle
+    # Unique-Index ist die verlässliche Barriere.
+    __table_args__ = (
+        Index(
+            "uq_offene_ausleihe_pro_maschine",
+            "maschine_id",
+            unique=True,
+            sqlite_where=text("rueckgabe_zeitpunkt IS NULL"),
+            postgresql_where=text("rueckgabe_zeitpunkt IS NULL"),
+        ),
+    )
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     maschine_id = Column(
         Integer,
-        ForeignKey("maschinen.id"),
+        ForeignKey("maschinen.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     benutzer_id = Column(
         Integer,
-        ForeignKey("benutzer.id"),
+        ForeignKey("benutzer.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -216,7 +261,7 @@ class Ausleihe(Base):
         nullable=False,
         index=True,
     )
-    rueckgabe_zeitpunkt = Column(DateTime, nullable=True)
+    rueckgabe_zeitpunkt = Column(DateTime, nullable=True, index=True)
     # ^^ NULL = noch nicht zurückgegeben (= aktuell ausgeliehen)
 
     rueckgabe_zustand = Column(SQLEnum(RueckgabeZustand), nullable=True)
@@ -251,8 +296,12 @@ class Ausleihe(Base):
 
     @property
     def dauer_tage(self) -> int:
-        ende = self.rueckgabe_zeitpunkt or datetime.now(timezone.utc).replace(tzinfo=None)
-        return (ende - self.ausleih_zeitpunkt).days
+        # SQLite legt datetimes ohne tz ab; frisch erzeugte Objekte tragen aber
+        # aware UTC (siehe Column-Default). Beide Seiten auf naiv normalisieren,
+        # sonst wirft die Subtraktion "can't subtract naive and aware".
+        start = _naiv(self.ausleih_zeitpunkt)
+        ende = _naiv(self.rueckgabe_zeitpunkt) or datetime.now(timezone.utc).replace(tzinfo=None)
+        return (ende - start).days
 
     def __repr__(self) -> str:
         zustand = "offen" if self.ist_offen else "abgeschlossen"

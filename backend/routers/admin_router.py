@@ -10,7 +10,7 @@ from fastapi import (
 )
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from backend import qr
 from backend.config import settings
@@ -82,7 +82,19 @@ def maschinen_liste(
 ) -> list[MaschineOut]:
     """Listet alle Maschinen. Suche/Status-Filter erfolgen client-seitig
     (frontend/js/filter.js), daher keine Query-Parameter."""
-    maschinen = db.query(Maschine).order_by(Maschine.maschinen_code).all()
+    maschinen = (
+        db.query(Maschine)
+        .options(
+            selectinload(Maschine.zubehoer_liste),
+            selectinload(Maschine.ausleihen).selectinload(Ausleihe.benutzer),
+            selectinload(Maschine.ausleihen).selectinload(
+                Ausleihe.mitgenommenes_zubehoer
+            ),
+            selectinload(Maschine.ausleihen).selectinload(Ausleihe.externes_team),
+        )
+        .order_by(Maschine.maschinen_code)
+        .all()
+    )
     return [maschine_zu_out(m, current_user.id) for m in maschinen]
 
 

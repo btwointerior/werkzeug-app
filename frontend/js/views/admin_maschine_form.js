@@ -3,7 +3,7 @@
 // für den Edit-Fall aus GET /api/admin/maschinen und filtern nach ID.
 
 import { api } from '../api.js';
-import { btnClasses, confirmDialog, escapeHtml, spinner, toast } from '../ui.js';
+import { btnClasses, confirmDialog, escapeHtml, safeUrl, spinner, toast } from '../ui.js';
 
 export async function renderAdminMaschineForm(maschineId) {
   const app = document.getElementById('app');
@@ -238,8 +238,8 @@ export async function renderAdminMaschineForm(maschineId) {
 function uploadSektion(prefix, titel, url, pfad, hinweis, accept, istBild = true) {
   const vorschau = url
     ? (istBild
-        ? `<img src="${escapeHtml(url)}" class="max-h-64 mx-auto mb-3 object-contain rounded">`
-        : `<a href="${escapeHtml(url)}" target="_blank" rel="noopener"
+        ? `<img src="${escapeHtml(safeUrl(url))}" class="max-h-64 mx-auto mb-3 object-contain rounded">`
+        : `<a href="${escapeHtml(safeUrl(url))}" target="_blank" rel="noopener"
               class="block text-sm text-accent underline mb-3 text-center">Aktuelle Datei öffnen</a>`)
     : `<p class="text-sm text-muted mb-3 text-center">Noch nichts hinterlegt.</p>`;
 

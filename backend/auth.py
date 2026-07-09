@@ -47,6 +47,22 @@ def decode_access_token(token: str) -> Optional[int]:
         return None
 
 
+def token_restlaufzeit(token: str) -> Optional[float]:
+    """Restlaufzeit eines Login-Tokens in Sekunden (None bei ungültig/ohne exp)."""
+    try:
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
+    except JWTError:
+        return None
+    if payload.get("scope") == _SCOPE_DATEI:
+        return None
+    exp = payload.get("exp")
+    if exp is None:
+        return None
+    return exp - datetime.now(timezone.utc).timestamp()
+
+
 def create_datei_token(benutzer_id: int, datei: str) -> str:
     """Erzeugt einen kurzlebigen Token, der GENAU für die angegebene Datei gilt."""
     expire = datetime.now(timezone.utc) + timedelta(

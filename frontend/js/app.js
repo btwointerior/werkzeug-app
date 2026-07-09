@@ -111,14 +111,19 @@ function renderChrome() {
   if (state.istAdmin) links.push({ hash: '#/admin', label: 'Admin', icon: '⚙️' });
 
   bottomnav.classList.remove('hidden');
+  const aktivHash = location.hash.split('?')[0];
   bottomnav.innerHTML = `
     <div class="max-w-3xl mx-auto h-16 border-t border-border bg-bg grid"
          style="grid-template-columns: repeat(${links.length}, minmax(0, 1fr));">
-      ${links.map((l, i) => `
-        <button data-i="${i}" class="flex flex-col items-center justify-center text-xs gap-1 text-muted hover:bg-surface-2 active:scale-95 transition">
-          <span class="text-xl leading-none">${l.icon}</span>
+      ${links.map((l, i) => {
+        const aktiv = l.hash && aktivHash === l.hash;
+        return `
+        <button data-i="${i}" aria-label="${escapeHtml(l.label)}"${aktiv ? ' aria-current="page"' : ''}
+                class="flex flex-col items-center justify-center text-xs gap-1 ${aktiv ? 'text-accent' : 'text-muted'} hover:bg-surface-2 active:scale-95 transition">
+          <span class="text-xl leading-none" aria-hidden="true">${l.icon}</span>
           <span>${l.label}</span>
-        </button>`).join('')}
+        </button>`;
+      }).join('')}
     </div>`;
   bottomnav.querySelectorAll('[data-i]').forEach((b) => {
     const i = +b.dataset.i;

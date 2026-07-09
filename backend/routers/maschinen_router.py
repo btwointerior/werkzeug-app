@@ -3,7 +3,8 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session, selectinload
 
 from backend.dependencies import get_current_user
 from backend.models import (
@@ -80,7 +81,19 @@ def alle_maschinen(
 ) -> list[MaschineOut]:
     """Geräte-Übersicht: komplette Maschinenliste für eingeloggte Nutzer.
     Suche/Status-Filter laufen client-seitig, daher hier keine Query-Parameter."""
-    maschinen = db.query(Maschine).order_by(Maschine.maschinen_code).all()
+    maschinen = (
+        db.query(Maschine)
+        .options(
+            selectinload(Maschine.zubehoer_liste),
+            selectinload(Maschine.ausleihen).selectinload(Ausleihe.benutzer),
+            selectinload(Maschine.ausleihen).selectinload(
+                Ausleihe.mitgenommenes_zubehoer
+            ),
+            selectinload(Maschine.ausleihen).selectinload(Ausleihe.externes_team),
+        )
+        .order_by(Maschine.maschinen_code)
+        .all()
+    )
     return [maschine_zu_out(m, current_user.id) for m in maschinen]
 
 
@@ -146,7 +159,16 @@ def maschine_ausleihen(
         )
     maschine.status = MaschinenStatus.AUSGELIEHEN
     db.add(neue_ausleihe)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # Race: ein paralleler Request hat die Maschine zwischen Status-Check
+        # und Commit bereits ausgeliehen (partieller Unique-Index greift).
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Maschine wurde soeben von jemand anderem ausgeliehen.",
+        )
     db.refresh(maschine)
     return maschine_zu_out(maschine, current_user.id)
 
