@@ -70,3 +70,9 @@ python -m backend.seed
 | Mitarbeiter | `anna.schmidt`| `test1234` |
 
 **Wichtig:** Admin-Passwort beim ersten Login aendern!
+
+## Deploy-Hinweise
+
+- Deploy: `./deploy.sh` (Vorschau) / `./deploy.sh --go` (echter Deploy + Dienst-Neustart).
+- `CORS_ORIGINS` in der Server-`.env` muss `capacitor://localhost` enthalten (iOS-App),
+  z. B. `CORS_ORIGINS=https://werkzeug.b2interior.de,capacitor://localhost`.

@@ -1,0 +1,6 @@
+{
+  "appId": "de.b2interior.werkzeug",
+  "appName": "Werkzeug",
+  "webDir": "www",
+  "server": { "allowNavigation": ["werkzeug.b2interior.de"] }
+}

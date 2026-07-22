@@ -3,6 +3,7 @@
 // `authFetch` (für Blobs/Form-Data) bereit.
 
 import { toast } from './ui.js';
+import { apiUrl } from './api_base.js';
 
 const TOKEN_KEY = 'wkz_token';
 
@@ -27,7 +28,7 @@ export async function authFetch(path, options = {}) {
 
   let res;
   try {
-    res = await fetch(path, { ...options, headers });
+    res = await fetch(apiUrl(path), { ...options, headers });
   } catch {
     throw new ApiError(0, 'Netzwerkfehler. Server nicht erreichbar.');
   }

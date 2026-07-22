@@ -1,0 +1,45 @@
+# CI-Build der nativen iOS-App (Werkzeug-Ausleihe). Läuft auf Codemagic.
+# Nutzt die bestehende Developer-Portal-Integration "bauos-asc-key" (kontoweit).
+# Trigger: manuell über die Codemagic-UI oder Git-Tag "app-v*".
+workflows:
+  ios-native:
+    name: Werkzeug iOS (TestFlight)
+    instance_type: mac_mini_m2
+    max_build_duration: 45
+    working_directory: ios_app
+    integrations:
+      app_store_connect: bauos-asc-key
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: de.b2interior.werkzeug
+      node: "22"
+      xcode: latest
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: 'app-v*'
+    scripts:
+      - name: npm-Abhängigkeiten
+        script: npm ci
+      - name: Web-Assets bündeln
+        script: npm run sync-assets
+      - name: Capacitor sync (www -> Xcode-Projekt, pod install)
+        script: npx cap sync ios
+      - name: Signierungs-Profile anwenden
+        script: xcode-project use-profiles
+      - name: Build-Nummer setzen
+        script: cd ios/App && agvtool new-version -all $BUILD_NUMBER
+      - name: IPA bauen
+        script: |
+          xcode-project build-ipa \
+            --workspace ios/App/App.xcworkspace \
+            --scheme App
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true

@@ -37,10 +37,10 @@ export function btnClasses(variant = 'primary') {
   return `${base} ${variants[variant] || variants.primary}`;
 }
 
-// Platzhalter-Logo. Späterer Austausch gegen echtes B2-Interior-Logo NUR hier.
+// Echtes App-Logo (frontend/assets/icons). Austausch weiterhin NUR hier.
 export function logoMarkup(sizeCls = 'h-8 w-8 text-sm') {
-  return `<span class="inline-flex items-center justify-center ${sizeCls} rounded-lg ` +
-         `bg-accent text-accent-ink font-extrabold tracking-tight">B2</span>`;
+  return `<img src="/static/assets/icons/icon-transparent-512.png" alt="Logo" ` +
+         `class="inline-block ${sizeCls} rounded-lg">`;
 }
 
 const TOAST_VARIANTS = {
