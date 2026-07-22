@@ -89,6 +89,21 @@ App-Farben generierten Interims-Icon.
   TestFlight-Upload; Export-Compliance-Flag setzen.
 - Interne TestFlight-Gruppe mit den Mitarbeiter-Apple-IDs.
 
+**8. NFC-Vorbereitung (Ausbaustufe, jetzt nur vorbereiten)**
+Später sollen Werkzeuge zusätzlich per NFC-Chip identifiziert werden können.
+NFC-Lesen ist auf iOS nur nativen Apps möglich (Core NFC) — die Webapp behält
+dauerhaft den QR-Weg. Jetzt wird vorbereitet, nicht gebaut:
+- **Identifikations-Abstraktion:** Der Scan liefert heute einen Code-String
+  (QR-Inhalt), über den das Werkzeug identifiziert wird. NFC-Chips werden
+  später mit demselben Identifier beschrieben → NFC wird eine zweite Quelle
+  für denselben String, Backend und Ausleih-Flow bleiben unverändert.
+  `scanner.js` wird so geschnitten, dass die Quelle (Kamera/NFC) austauschbar
+  hinter einer Funktion „liefere Werkzeug-Code" liegt.
+- **Apple-Seite:** Die Capability „Near Field Communication Tag Reading"
+  lässt sich der Bundle-ID nachträglich hinzufügen (Entitlement +
+  `NFCReaderUsageDescription`, Profil neu generieren) — jetzt keine Aktion.
+- **Plugin-Wahl** (Capacitor-NFC-Plugin) wird erst bei Umsetzung entschieden.
+
 ## Fehlerbehandlung
 
 - Ohne Netz zeigt die App die bestehende Fehlermeldung aus `api.js`
@@ -110,6 +125,7 @@ App-Farben generierten Interims-Icon.
 ## Ausdrücklich außerhalb des Umfangs
 
 - Offline-Betrieb / Sync-Engine
+- NFC-Umsetzung (nur die Vorbereitung aus Punkt 8 ist im Umfang)
 - Öffentlicher App-Store-Auftritt (nur TestFlight, später Unlisted)
 - Android-App
 - Änderungen an Funktionsumfang oder Design der Webapp
