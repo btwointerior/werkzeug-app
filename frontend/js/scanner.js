@@ -29,8 +29,10 @@ export function parseScan(text) {
 }
 
 // Öffnet ein Vollbild-Overlay mit Live-Kamera und scannt QR-Codes.
+// Optional: nfc = async Funktion, die einen Code per NFC liefert (nur native
+// App) — dann zeigt das Overlay zusätzlich einen "NFC-Tag lesen"-Button.
 // Auflösung: gefundener Maschinen-Code (string) | null (Abbruch/Kamera nicht möglich).
-export function scanQr() {
+export function scanQr({ nfc = null } = {}) {
   return new Promise((resolve) => {
     const root = document.getElementById('modal-root');
     let stream = null;
@@ -53,7 +55,8 @@ export function scanQr() {
           QR-Code der Maschine in den Rahmen halten
         </div>
       </div>
-      <div class="p-4">
+      <div class="p-4 space-y-2">
+        ${nfc ? `<button id="qr-nfc" class="${btnClasses('primary')} w-full">NFC-Tag lesen</button>` : ''}
         <button id="qr-cancel" class="${btnClasses('secondary')} w-full">Abbrechen</button>
       </div>`;
     root.appendChild(overlay);
@@ -78,6 +81,17 @@ export function scanQr() {
     };
 
     cancelBtn.onclick = () => finish(null);
+
+    if (nfc) {
+      overlay.querySelector('#qr-nfc').onclick = async () => {
+        if (done) return;
+        done = true;
+        cleanup();       // Kamera stoppen, Overlay schließen — dann iOS-NFC-Dialog
+        let code = null;
+        try { code = await nfc(); } catch { /* Abbruch/Fehler -> wie "nichts gescannt" */ }
+        resolve(code);
+      };
+    }
 
     const showError = () => {
       hint.textContent = 'Kamerazugriff nicht möglich.';
