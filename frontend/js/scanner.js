@@ -39,6 +39,9 @@ export function scanQr() {
 
     const overlay = document.createElement('div');
     overlay.className = 'fixed inset-0 z-50 bg-black flex flex-col';
+    // iOS-Safe-Area: Overlay-Kopf nicht unter der Statusleiste (Browser: 0).
+    overlay.style.paddingTop = 'env(safe-area-inset-top)';
+    overlay.style.paddingBottom = 'env(safe-area-inset-bottom)';
     overlay.innerHTML = `
       <div class="px-4 py-3 text-txt font-semibold">QR-Code scannen</div>
       <div class="relative flex-1 overflow-hidden">
