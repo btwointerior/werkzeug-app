@@ -137,10 +137,13 @@ function renderChrome() {
 }
 
 async function scanOrAsk() {
-  const quelle = () => scanQr({ nfc: istNfcVerfuegbar() ? nfcLeseCode : null });
+  const quelle = () => scanQr({
+    nfc: istNfcVerfuegbar() ? nfcLeseCode : null,
+    manuell: askCode,     // eigener Button im Overlay öffnet die Eingabe
+  });
   const code = await holeWerkzeugCode(quelle);
   if (code) location.hash = `#/m/${encodeURIComponent(code)}`;
-  else await askCode();   // Abbruch/Kamera nicht möglich → manuelle Eingabe
+  // "Abbrechen" bricht nur ab — keine automatische manuelle Eingabe mehr.
 }
 
 async function askCode() {

@@ -31,8 +31,10 @@ export function parseScan(text) {
 // Öffnet ein Vollbild-Overlay mit Live-Kamera und scannt QR-Codes.
 // Optional: nfc = async Funktion, die einen Code per NFC liefert (nur native
 // App) — dann zeigt das Overlay zusätzlich einen "NFC-Tag lesen"-Button.
+// Optional: manuell = Funktion, die die manuelle Code-Eingabe öffnet (eigener
+// Button; "Abbrechen" bricht dann NUR ab, ohne Eingabe-Dialog).
 // Auflösung: gefundener Maschinen-Code (string) | null (Abbruch/Kamera nicht möglich).
-export function scanQr({ nfc = null } = {}) {
+export function scanQr({ nfc = null, manuell = null } = {}) {
   return new Promise((resolve) => {
     const root = document.getElementById('modal-root');
     let stream = null;
@@ -57,7 +59,8 @@ export function scanQr({ nfc = null } = {}) {
       </div>
       <div class="p-4 space-y-2">
         ${nfc ? `<button id="qr-nfc" class="${btnClasses('primary')} w-full">NFC-Tag lesen</button>` : ''}
-        <button id="qr-cancel" class="${btnClasses('secondary')} w-full">Abbrechen</button>
+        ${manuell ? `<button id="qr-manuell" class="${btnClasses('secondary')} w-full">Code manuell eingeben</button>` : ''}
+        <button id="qr-cancel" class="${btnClasses('ghost')} w-full">Abbrechen</button>
       </div>`;
     root.appendChild(overlay);
 
@@ -93,9 +96,18 @@ export function scanQr({ nfc = null } = {}) {
       };
     }
 
+    if (manuell) {
+      overlay.querySelector('#qr-manuell').onclick = () => {
+        if (done) return;
+        done = true;
+        cleanup();
+        resolve(null);
+        manuell();       // öffnet den Eingabe-Dialog (navigiert selbst)
+      };
+    }
+
     const showError = () => {
-      hint.textContent = 'Kamerazugriff nicht möglich.';
-      cancelBtn.textContent = 'Code manuell eingeben';
+      hint.textContent = 'Kamerazugriff nicht möglich — bitte Code manuell eingeben.';
     };
 
     const tick = () => {

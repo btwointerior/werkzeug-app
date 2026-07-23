@@ -41,6 +41,9 @@
        Bottom-Nav nicht unter dem Home-Balken. Im Browser ist env() = 0. */
     #topbar { padding-top: env(safe-area-inset-top); }
     #bottomnav { padding-bottom: env(safe-area-inset-bottom); background: #0b0f1a; }
+    /* Fixierte Aktionsleisten (AUSLEIHEN etc.) sitzen direkt über der
+       Bottom-Nav — die ist um die Safe-Area höher als ihre 4rem (h-16). */
+    .fixed.bottom-16 { bottom: calc(4rem + env(safe-area-inset-bottom)); }
   </style>
 </head>
 <body class="bg-bg text-txt-2 min-h-screen">
