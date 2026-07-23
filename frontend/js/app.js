@@ -108,7 +108,7 @@ function renderChrome() {
   const links = [
     { hash: '#/geraete', label: 'Geräte', icon: '🔧' },
     { hash: '#/meine',   label: 'Meine',  icon: '📋' },
-    { label: 'Ausleihen', icon: '📲', action: scanOrAsk },
+    { label: 'Ausleihen', icon: '🔄', action: scanOrAsk },
   ];
   if (state.istAdmin) links.push({ hash: '#/admin', label: 'Admin', icon: '⚙️' });
 
