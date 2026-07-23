@@ -49,5 +49,7 @@
 	<string>Die Kamera wird zum Scannen der QR-Codes an den Werkzeugen benötigt.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NFCReaderUsageDescription</key>
+	<string>NFC wird zum Lesen und Beschreiben der Werkzeug-Tags benötigt.</string>
 </dict>
 </plist>

@@ -8,6 +8,7 @@
 
 import { api } from '../api.js';
 import { state } from '../app.js';
+import { istNfcVerfuegbar, nfcSchreibeUndVersiegele } from '../nfc.js';
 import {
   btnClasses, confirmDialog, escapeHtml, modal, safeUrl, spinner, statusBadge, toast, zeitseit,
 } from '../ui.js';
@@ -123,6 +124,11 @@ export async function renderMaschine(code) {
             📄 Keine Anleitung hinterlegt
           </button>
         `}
+
+        ${userIstAdmin && istNfcVerfuegbar() ? `
+          <button id="btn-nfc-schreiben" class="${btnClasses('secondary')} w-full mb-4">
+            📶 NFC-Tag beschreiben (dauerhaft versiegelt)
+          </button>` : ''}
       </main>
 
       <div class="fixed bottom-16 left-0 right-0 bg-surface border-t border-border p-3 z-30">
@@ -130,6 +136,24 @@ export async function renderMaschine(code) {
           ${aktion.html}
         </div>
       </div>`;
+
+    const nfcBtn = document.getElementById('btn-nfc-schreiben');
+    if (nfcBtn) nfcBtn.onclick = async () => {
+      const ok = await confirmDialog(
+        `Der NFC-Tag wird mit "${m.maschinen_code}" beschrieben und danach DAUERHAFT versiegelt — er kann nie wieder geändert werden. Fortfahren?`,
+        { titel: 'NFC-Tag beschreiben', okLabel: 'Beschreiben & versiegeln', dangerous: true }
+      );
+      if (!ok) return;
+      nfcBtn.disabled = true;
+      try {
+        await nfcSchreibeUndVersiegele(m.maschinen_code);
+        toast('NFC-Tag beschrieben und versiegelt.', 'success');
+      } catch (err) {
+        toast(err && err.message ? err.message : 'NFC-Schreiben fehlgeschlagen.', 'error');
+      } finally {
+        nfcBtn.disabled = false;
+      }
+    };
 
     if (aktion.id && aktion.handler) {
       const btn = document.getElementById(aktion.id);
