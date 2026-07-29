@@ -35,8 +35,9 @@
   </script>
   <style>
     html, body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; }
-    /* iOS-Safari: Tap-Highlight reduzieren */
-    button, a { -webkit-tap-highlight-color: transparent; }
+    /* iOS-Safari: Tap-Highlight reduzieren; touch-action verhindert den
+       Doppeltipp-Zoom auf Bedienelementen (Pinch-Zoom bleibt möglich) */
+    button, a, input, select, textarea, label { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
     /* iOS-Safe-Area (native App/PWA): Kopfzeile nicht unter der Statusleiste,
        Bottom-Nav nicht unter dem Home-Balken. Im Browser ist env() = 0. */
     #topbar { padding-top: env(safe-area-inset-top); }
