@@ -12,7 +12,7 @@ from PIL import Image, UnidentifiedImageError
 from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 
-from backend import qr
+from backend import ki_analyse, qr
 from backend.config import settings
 from backend.dependencies import require_admin
 from backend.models import (
@@ -29,6 +29,7 @@ from backend.schemas import (
     BenutzerKurz,
     BenutzerOut,
     BenutzerUpdate,
+    FotoAnalyseOut,
     MaschineCreate,
     MaschineKurz,
     MaschineOut,
@@ -296,6 +297,66 @@ def foto_entfernen(
     db.commit()
     db.refresh(maschine)
     return maschine_zu_out(maschine, current_user.id)
+
+
+MAX_ANALYSE_FOTOS = 5
+
+
+@router.post("/maschinen/foto-analyse", response_model=FotoAnalyseOut)
+async def foto_analyse(dateien: list[UploadFile] = File(...)) -> FotoAnalyseOut:
+    """Liest Typenschild-Fotos per KI aus (Vorschlag für Neu-Anlage).
+
+    Nimmt 1-5 Bilder (JPG/PNG/WebP, je max 10 MB), verkleinert sie und lässt
+    Claude (Bedrock) Name/Hersteller/Seriennummer vorschlagen. Legt NICHTS an -
+    reiner Vorschlags-Endpunkt.
+    """
+    if not ki_analyse.ist_konfiguriert():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="KI-Analyse ist auf diesem Server nicht konfiguriert.",
+        )
+    if not dateien or len(dateien) > MAX_ANALYSE_FOTOS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Bitte 1 bis {MAX_ANALYSE_FOTOS} Fotos hochladen.",
+        )
+
+    bilder: list[bytes] = []
+    for datei in dateien:
+        if datei.content_type not in settings.ERLAUBTE_BILD_TYPEN:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Nur JPG, PNG oder WebP erlaubt.",
+            )
+        inhalt = await datei.read()
+        if len(inhalt) > settings.MAX_UPLOAD_SIZE:
+            mb = settings.MAX_UPLOAD_SIZE // (1024 * 1024)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Datei zu groß (max {mb} MB).",
+            )
+        try:
+            Image.open(io.BytesIO(inhalt)).verify()
+            img = Image.open(io.BytesIO(inhalt))
+        except (UnidentifiedImageError, OSError, ValueError):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Mindestens eine Datei ist kein gültiges Bild.",
+            )
+        img.thumbnail((1568, 1568))
+        if img.mode != "RGB":
+            img = img.convert("RGB")
+        puffer = io.BytesIO()
+        img.save(puffer, "JPEG", quality=85, optimize=True)
+        bilder.append(puffer.getvalue())
+
+    try:
+        ergebnis = ki_analyse.analysiere_fotos(bilder)
+    except ki_analyse.KIAnalyseFehler as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+        )
+    return FotoAnalyseOut(**ergebnis)
 
 
 # ============================================================

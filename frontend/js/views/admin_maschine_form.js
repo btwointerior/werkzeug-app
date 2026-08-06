@@ -11,6 +11,12 @@ export async function renderAdminMaschineForm(maschineId) {
 
   let daten = leerDaten();
 
+  // KI-Foto-Analyse (nur Neu-Modus): gewählte Dateien, Objekt-URLs für die
+  // Vorschau und Index des Fotos, das nach dem Anlegen übernommen werden soll.
+  let kiDateien = [];
+  let kiUrls = [];
+  let kiGewaehlt = -1;
+
   if (maschineId) {
     try {
       const alle = await api.get('/api/admin/maschinen');
@@ -41,6 +47,7 @@ export async function renderAdminMaschineForm(maschineId) {
         <h1 class="text-2xl font-bold text-txt mb-4">
           ${maschineId ? 'Maschine bearbeiten' : 'Neue Maschine'}
         </h1>
+        ${maschineId ? '' : kiSektion()}
         <form id="form" class="space-y-3 bg-surface border border-border rounded-lg p-4">
           ${feldText('maschinen_code', 'Maschinen-Code (z.B. M-0042)', daten.maschinen_code, { uppercase: true, disabled: !!maschineId })}
           ${feldText('name', 'Name', daten.name, { required: true })}
@@ -94,7 +101,113 @@ export async function renderAdminMaschineForm(maschineId) {
     if (maschineId) {
       setupUpload('foto');
       setupUpload('anl');
+    } else {
+      setupKiAnalyse();
     }
+  }
+
+  // -----------------------------------------------------------
+  //  KI-Foto-Analyse (nur Neu-Modus)
+  // -----------------------------------------------------------
+
+  function kiSektion() {
+    return `
+      <section class="bg-surface rounded-lg border border-border p-4 mb-4">
+        <h2 class="font-semibold text-txt mb-1">Per Foto ausfüllen (KI)</h2>
+        <p class="text-xs text-muted mb-3">
+          Typenschild/Etiketten fotografieren oder auswählen (bis zu 5 Fotos) –
+          Name, Hersteller und Seriennummer werden automatisch vorgeschlagen.
+          Gerätenummer und Platznummer trägst du weiterhin selbst ein.
+        </p>
+        <input type="file" id="ki-input" accept="image/jpeg,image/png,image/webp" multiple
+               class="w-full text-sm border border-border rounded-lg p-2 bg-surface text-txt">
+        <div id="ki-thumbs" class="grid grid-cols-3 gap-2 my-2"></div>
+        <p id="ki-foto-wahl" class="text-xs text-muted mb-2 hidden">
+          Tippe ein Foto an, um es nach dem Anlegen als Maschinen-Foto zu übernehmen (optional).
+        </p>
+        <button type="button" id="ki-analyse" disabled
+                class="bg-accent hover:brightness-95 text-accent-ink min-h-[44px] px-4 rounded-lg text-sm w-full disabled:opacity-50">
+          Fotos analysieren
+        </button>
+        <p id="ki-hinweis" class="text-sm text-amber-500 mt-2"></p>
+      </section>`;
+  }
+
+  function setupKiAnalyse() {
+    const input = document.getElementById('ki-input');
+    const analyseBtn = document.getElementById('ki-analyse');
+    const thumbs = document.getElementById('ki-thumbs');
+    const wahlHinweis = document.getElementById('ki-foto-wahl');
+    const hinweisEl = document.getElementById('ki-hinweis');
+
+    const zeichneThumbs = () => {
+      thumbs.innerHTML = kiUrls.map((url, i) => `
+        <button type="button" data-ki-thumb="${i}"
+                class="relative rounded-lg overflow-hidden border-2 ${i === kiGewaehlt ? 'border-accent' : 'border-border'}"
+                aria-pressed="${i === kiGewaehlt}">
+          <img src="${escapeHtml(url)}" class="h-24 w-full object-cover" alt="Foto ${i + 1}">
+          ${i === kiGewaehlt
+            ? '<span class="absolute top-1 right-1 bg-accent text-accent-ink text-xs rounded px-1.5 py-0.5">Maschinen-Foto</span>'
+            : ''}
+        </button>`).join('');
+      thumbs.querySelectorAll('[data-ki-thumb]').forEach((el) => {
+        el.onclick = () => {
+          const i = +el.dataset.kiThumb;
+          kiGewaehlt = kiGewaehlt === i ? -1 : i; // erneut antippen = Abwahl
+          zeichneThumbs();
+        };
+      });
+    };
+
+    input.onchange = () => {
+      kiUrls.forEach((u) => URL.revokeObjectURL(u));
+      kiDateien = Array.from(input.files).slice(0, 5);
+      if (input.files.length > 5) toast('Maximal 5 Fotos – die ersten 5 werden verwendet.', 'info');
+      kiUrls = kiDateien.map((f) => URL.createObjectURL(f));
+      kiGewaehlt = kiDateien.length ? 0 : -1;
+      analyseBtn.disabled = !kiDateien.length;
+      wahlHinweis.classList.toggle('hidden', !kiDateien.length);
+      zeichneThumbs();
+    };
+
+    analyseBtn.onclick = async () => {
+      if (!kiDateien.length) return;
+      const fd = new FormData();
+      kiDateien.forEach((f) => fd.append('dateien', f));
+      analyseBtn.disabled = true;
+      analyseBtn.textContent = 'Analysiere…';
+      hinweisEl.textContent = '';
+      try {
+        const erg = await api.post('/api/admin/maschinen/foto-analyse', fd);
+        let befuellt = 0;
+        for (const [feld, wert] of Object.entries({
+          name: erg.name, hersteller: erg.hersteller, seriennummer: erg.seriennummer,
+        })) {
+          const el = document.getElementById(`f-${feld}`);
+          if (wert && el && !el.value.trim()) {
+            el.value = wert;
+            el.classList.add('border-accent');
+            befuellt += 1;
+          }
+        }
+        const beschr = document.getElementById('f-beschreibung');
+        if (erg.beschreibung && beschr && !beschr.value.trim()) {
+          beschr.value = erg.beschreibung;
+          beschr.classList.add('border-accent');
+          befuellt += 1;
+        }
+        if (erg.hinweis) hinweisEl.textContent = `Hinweis der KI: ${erg.hinweis}`;
+        toast(befuellt
+          ? `${befuellt} Feld${befuellt === 1 ? '' : 'er'} vorbefüllt – bitte prüfen.`
+          : 'Auf den Fotos wurde nichts Verwertbares erkannt.',
+          befuellt ? 'success' : 'info');
+      } catch (err) {
+        toast(err.detail || 'Analyse fehlgeschlagen.', 'error');
+      } finally {
+        analyseBtn.disabled = false;
+        analyseBtn.textContent = 'Fotos analysieren';
+      }
+    };
   }
 
   // -----------------------------------------------------------
@@ -149,8 +262,20 @@ export async function renderAdminMaschineForm(maschineId) {
         } else {
           const code = document.getElementById('f-maschinen_code').value.trim().toUpperCase();
           if (!code) { toast('Maschinen-Code ist Pflicht.', 'error'); return; }
-          await api.post('/api/admin/maschinen', { maschinen_code: code, ...body });
+          const neu = await api.post('/api/admin/maschinen', { maschinen_code: code, ...body });
           toast('Maschine angelegt.', 'success');
+          // Gewähltes Analyse-Foto als Maschinen-Foto übernehmen. Schlägt nur
+          // der Upload fehl, bleibt die Maschine angelegt (Foto geht nachträglich).
+          if (kiGewaehlt >= 0 && kiDateien[kiGewaehlt]) {
+            const fd = new FormData();
+            fd.append('datei', kiDateien[kiGewaehlt]);
+            try {
+              await api.post(`/api/admin/maschinen/${neu.id}/foto`, fd);
+              toast('Foto übernommen.', 'success');
+            } catch (fotoErr) {
+              toast('Maschine angelegt, aber Foto-Upload fehlgeschlagen – bitte im Bearbeiten-Modus nachholen.', 'error', 6000);
+            }
+          }
         }
         location.hash = '#/admin/maschinen';
       } catch (err) {

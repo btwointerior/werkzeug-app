@@ -121,6 +121,15 @@ class MaschineCreate(BaseModel):
     zubehoer: list[ZubehoerCreate] = []
 
 
+class FotoAnalyseOut(BaseModel):
+    """KI-Vorschlag aus Typenschild-Fotos. Nicht Erkanntes bleibt null."""
+    name: Optional[str] = None
+    hersteller: Optional[str] = None
+    seriennummer: Optional[str] = None
+    beschreibung: Optional[str] = None
+    hinweis: Optional[str] = None
+
+
 class MaschineUpdate(BaseModel):
     """Alle Felder optional. Nicht gesendete Felder bleiben unverändert.
     Für `zubehoer`: None = nicht anfassen; [] = alles Zubehör entfernen;
