@@ -81,7 +81,7 @@ export async function renderAdminMaschineForm(maschineId) {
             <button type="button" id="zub-add" class="${btnClasses('secondary')} text-sm">+ Zubehör</button>
           </div>
           <div class="flex gap-2 pt-2">
-            <button type="submit" class="${btnClasses('primary')} flex-1">
+            <button type="submit" id="form-submit" class="${btnClasses('primary')} flex-1">
               ${maschineId ? 'Speichern' : 'Anlegen'}
             </button>
             <a href="#/admin/maschinen" class="${btnClasses('secondary')}">Abbrechen</a>
@@ -416,18 +416,25 @@ export async function renderAdminMaschineForm(maschineId) {
         zubehoer,
       };
 
+      const submitBtn = document.getElementById('form-submit');
+      const beschriftung = submitBtn.textContent;
+      submitBtn.disabled = true;
       try {
         if (maschineId) {
+          submitBtn.textContent = 'Speichert…';
           await api.put(`/api/admin/maschinen/${maschineId}`, body);
           toast('Gespeichert.', 'success');
+          location.hash = '#/admin/maschinen';
         } else {
           const code = document.getElementById('f-maschinen_code').value.trim().toUpperCase();
           if (!code) { toast('Maschinen-Code ist Pflicht.', 'error'); return; }
+          submitBtn.textContent = 'Legt an…';
           const neu = await api.post('/api/admin/maschinen', { maschinen_code: code, ...body });
           toast('Maschine angelegt.', 'success');
           // Alle Analyse-Fotos an die Maschine hängen; das angetippte wird
           // Startbild. Schlägt nur der Upload fehl, bleibt die Maschine angelegt.
           if (kiDateien.length) {
+            submitBtn.textContent = `Lädt ${kiDateien.length} Foto${kiDateien.length === 1 ? '' : 's'} hoch…`;
             const fd = new FormData();
             kiDateien.forEach((f) => fd.append('dateien', f));
             fd.append('start_index', String(kiGewaehlt >= 0 ? kiGewaehlt : 0));
@@ -439,15 +446,20 @@ export async function renderAdminMaschineForm(maschineId) {
             }
           }
           // Anleitung im Hintergrund suchen - der Server pflegt sie selbst ein,
-          // auch wenn wir gleich zur Übersicht wechseln.
+          // auch wenn wir gleich ins Menü wechseln.
           if (body.hersteller && body.name) {
             api.post(`/api/admin/maschinen/${neu.id}/anleitung-suche`).catch(() => {});
             toast('Bedienungsanleitung wird im Hintergrund gesucht…', 'info', 4000);
           }
+          // Nach erfolgreichem Anlegen zurück ins Admin-Menü.
+          location.hash = '#/admin';
         }
-        location.hash = '#/admin/maschinen';
       } catch (err) {
         toast(err.detail || 'Speichern fehlgeschlagen.', 'error');
+      } finally {
+        // Nur relevant, wenn wir wegen eines Fehlers auf dem Formular bleiben.
+        submitBtn.disabled = false;
+        submitBtn.textContent = beschriftung;
       }
     };
   }
