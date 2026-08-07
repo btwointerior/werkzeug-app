@@ -160,6 +160,11 @@ export async function renderAdminMaschineForm(maschineId) {
         ${fotos.length
           ? `<div class="grid grid-cols-3 gap-2 mb-3" id="gal-liste">${thumbs}</div>`
           : '<p class="text-sm text-muted mb-3 text-center">Noch keine Fotos hinterlegt.</p>'}
+        ${navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? `
+          <button type="button" id="gal-kamera"
+                  class="${btnClasses('secondary')} w-full mb-2 text-sm">
+            📷 Fotos aufnehmen (mehrere nacheinander)
+          </button>` : ''}
         <div class="flex gap-2 flex-wrap items-stretch">
           <input type="file" id="gal-input" accept="image/jpeg,image/png,image/webp" multiple
                  class="flex-1 min-w-0 text-sm border border-border rounded-lg p-2 bg-surface text-txt">
@@ -172,11 +177,9 @@ export async function renderAdminMaschineForm(maschineId) {
   }
 
   function setupGalerie() {
-    document.getElementById('gal-upload').onclick = async () => {
-      const input = document.getElementById('gal-input');
-      if (!input.files.length) { toast('Bitte zuerst Fotos auswählen.', 'error'); return; }
+    const ladeHoch = async (dateien) => {
       const fd = new FormData();
-      Array.from(input.files).slice(0, 10).forEach((f) => fd.append('dateien', f));
+      dateien.slice(0, 10).forEach((f) => fd.append('dateien', f));
       toast('Fotos werden hochgeladen…', 'info', 2000);
       try {
         const m = await api.post(`/api/admin/maschinen/${maschineId}/fotos`, fd);
@@ -186,6 +189,18 @@ export async function renderAdminMaschineForm(maschineId) {
       } catch (err) {
         toast(err.detail || 'Upload fehlgeschlagen.', 'error');
       }
+    };
+
+    document.getElementById('gal-upload').onclick = () => {
+      const input = document.getElementById('gal-input');
+      if (!input.files.length) { toast('Bitte zuerst Fotos auswählen.', 'error'); return; }
+      ladeHoch(Array.from(input.files));
+    };
+
+    const kamBtn = document.getElementById('gal-kamera');
+    if (kamBtn) kamBtn.onclick = async () => {
+      const neue = await kameraOverlay(10);
+      if (neue.length) await ladeHoch(neue);
     };
 
     document.querySelectorAll('[data-gal-start]').forEach((el) => {
@@ -255,6 +270,11 @@ export async function renderAdminMaschineForm(maschineId) {
           und Seriennummer werden automatisch vorgeschlagen. Gerätenummer und
           Platznummer trägst du weiterhin selbst ein.
         </p>
+        ${navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? `
+          <button type="button" id="ki-kamera"
+                  class="${btnClasses('secondary')} w-full mb-2 text-sm">
+            📷 Fotos aufnehmen (mehrere nacheinander)
+          </button>` : ''}
         <input type="file" id="ki-input" accept="image/jpeg,image/png,image/webp" multiple
                class="w-full text-sm border border-border rounded-lg p-2 bg-surface text-txt">
         <div id="ki-thumbs" class="grid grid-cols-3 gap-2 my-2"></div>
@@ -316,11 +336,7 @@ export async function renderAdminMaschineForm(maschineId) {
       });
     };
 
-    input.onchange = () => {
-      // Sammeln statt ersetzen: die iPhone-Kamera liefert pro Aufnahme nur EIN
-      // Foto - jede weitere Auswahl/Aufnahme haengt an die bisherigen an.
-      const neue = Array.from(input.files);
-      input.value = '';
+    const haengeAn = (neue) => {
       for (const f of neue) {
         if (kiDateien.length >= 5) { toast('Maximal 5 Fotos.', 'info'); break; }
         kiDateien.push(f);
@@ -329,6 +345,19 @@ export async function renderAdminMaschineForm(maschineId) {
       if (kiGewaehlt < 0 && kiDateien.length) kiGewaehlt = 0;
       zeichneStatus();
       zeichneThumbs();
+    };
+
+    input.onchange = () => {
+      // Sammeln statt ersetzen: die iPhone-Kamera liefert pro Aufnahme nur EIN
+      // Foto - jede weitere Auswahl/Aufnahme haengt an die bisherigen an.
+      const neue = Array.from(input.files);
+      input.value = '';
+      haengeAn(neue);
+    };
+
+    const kamBtn = document.getElementById('ki-kamera');
+    if (kamBtn) kamBtn.onclick = async () => {
+      haengeAn(await kameraOverlay(5 - kiDateien.length));
     };
 
     analyseBtn.onclick = async () => {
@@ -537,6 +566,68 @@ export async function renderAdminMaschineForm(maschineId) {
                ${opt.required ? 'required' : ''}>
       </div>`;
   }
+}
+
+// In-App-Kamera: mehrere Fotos in EINER Sitzung aufnehmen (Auslöser mehrfach
+// drücken, dann Fertig). Löst das iOS-Limit, dass der System-Fotodialog pro
+// Aufruf nur ein Foto liefert. Gibt ein Promise mit File-Objekten zurück.
+function kameraOverlay(maxFotos) {
+  return new Promise((resolve) => {
+    const md = navigator.mediaDevices;
+    if (!md || !md.getUserMedia) { toast('Kamera nicht verfügbar.', 'error'); resolve([]); return; }
+    if (maxFotos < 1) { toast('Maximale Fotoanzahl erreicht.', 'info'); resolve([]); return; }
+
+    const wrap = document.createElement('div');
+    wrap.className = 'fixed inset-0 z-50 bg-black flex flex-col';
+    wrap.innerHTML = `
+      <video class="flex-1 w-full min-h-0 object-cover" autoplay playsinline muted></video>
+      <div class="bg-black/90 flex items-center justify-between px-6 pt-4"
+           style="padding-bottom: calc(1.5rem + env(safe-area-inset-bottom))">
+        <button type="button" id="kam-abbruch" class="text-white min-h-[44px] px-3">Abbrechen</button>
+        <button type="button" id="kam-ausloeser" aria-label="Foto aufnehmen"
+                class="w-16 h-16 rounded-full bg-white border-4 border-neutral-400 active:scale-90 transition"></button>
+        <button type="button" id="kam-fertig" class="text-accent font-semibold min-h-[44px] px-3">Fertig (0)</button>
+      </div>`;
+    document.body.appendChild(wrap);
+    const video = wrap.querySelector('video');
+    const fotos = [];
+    let stream = null;
+    let zu = false;
+
+    const schliessen = (ergebnis) => {
+      if (zu) return;
+      zu = true;
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+      wrap.remove();
+      resolve(ergebnis);
+    };
+
+    md.getUserMedia({ video: { facingMode: 'environment' } })
+      .then((s) => {
+        if (zu) { s.getTracks().forEach((t) => t.stop()); return; }
+        stream = s;
+        video.srcObject = s;
+      })
+      .catch(() => { toast('Kamera-Zugriff nicht möglich.', 'error'); schliessen([]); });
+
+    wrap.querySelector('#kam-ausloeser').onclick = () => {
+      if (!video.videoWidth) return; // Stream noch nicht bereit
+      if (fotos.length >= maxFotos) { toast(`Maximal ${maxFotos} Foto${maxFotos === 1 ? '' : 's'}.`, 'info'); return; }
+      const c = document.createElement('canvas');
+      c.width = video.videoWidth;
+      c.height = video.videoHeight;
+      c.getContext('2d').drawImage(video, 0, 0);
+      c.toBlob((blob) => {
+        if (!blob || zu) return;
+        fotos.push(new File([blob], `kamera_${Date.now()}_${fotos.length}.jpg`, { type: 'image/jpeg' }));
+        wrap.querySelector('#kam-fertig').textContent = `Fertig (${fotos.length})`;
+        video.style.opacity = '0.3'; // kurzer Blitz-Effekt als Rückmeldung
+        setTimeout(() => { video.style.opacity = '1'; }, 120);
+      }, 'image/jpeg', 0.9);
+    };
+    wrap.querySelector('#kam-fertig').onclick = () => schliessen(fotos);
+    wrap.querySelector('#kam-abbruch').onclick = () => schliessen([]);
+  });
 }
 
 // HTML einer Upload-Sektion: Drag-Zone + File-Input + Hochladen-/Entfernen-Buttons.
