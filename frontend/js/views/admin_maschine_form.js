@@ -88,21 +88,24 @@ export async function renderAdminMaschineForm(maschineId) {
           </div>
         </form>
 
-        ${maschineId ? uploadSektion('foto', 'Foto', daten.foto_url, daten.foto_pfad,
-            'JPG / PNG / WebP, max 10 MB. Wird auf max. 1600 px verkleinert.',
-            'image/jpeg,image/png,image/webp')
-          : '<p class="text-sm text-muted mt-3">Foto und Anleitung können nach dem Anlegen hochgeladen werden.</p>'}
+        ${maschineId ? galerieSektion(daten.fotos)
+          : '<p class="text-sm text-muted mt-3">Weitere Fotos und die Anleitung können nach dem Anlegen gepflegt werden.</p>'}
 
         ${maschineId ? uploadSektion('anl', 'Betriebsanleitung', daten.anleitung_url, daten.anleitung_pfad,
-            'Nur PDF, max 10 MB.', 'application/pdf', /* istBild */ false)
+            'Nur PDF, max 10 MB.', 'application/pdf', /* istBild */ false,
+            `<button id="anl-suche" type="button"
+                     class="${btnClasses('secondary')} w-full mt-2 text-sm">
+               🔎 Automatisch im Internet suchen (KI)
+             </button>`)
           : ''}
       </main>`;
 
     setupZubehoer();
     setupSubmit();
     if (maschineId) {
-      setupUpload('foto');
+      setupGalerie();
       setupUpload('anl');
+      setupAnleitungSuche();
     } else {
       setupKiAnalyse();
       setupCodeHinweis();
@@ -127,6 +130,115 @@ export async function renderAdminMaschineForm(maschineId) {
         (antippen zum Übernehmen)`;
       document.getElementById('code-uebernehmen').onclick = () => { input.value = code; };
     } catch { /* Hinweis ist optional – Fehler hier nie blockierend */ }
+  }
+
+  // -----------------------------------------------------------
+  //  Foto-Galerie (nur Edit-Modus)
+  // -----------------------------------------------------------
+
+  function galerieSektion(fotos) {
+    const thumbs = fotos.map((f, i) => `
+      <div class="relative">
+        <button type="button" data-gal-start="${i}" title="Als Startbild festlegen"
+                class="block w-full rounded-lg overflow-hidden border-2 ${f.ist_start ? 'border-accent' : 'border-border'}">
+          <img src="${escapeHtml(safeUrl(apiUrl(f.url)))}" class="h-24 w-full object-cover" alt="Foto ${i + 1}">
+        </button>
+        ${f.ist_start
+          ? '<span class="absolute top-1 left-1 bg-accent text-accent-ink text-xs rounded px-1.5 py-0.5 pointer-events-none">Startbild</span>'
+          : ''}
+        <button type="button" data-gal-del="${i}" aria-label="Foto löschen"
+                class="absolute top-1 right-1 bg-rose-600 hover:bg-rose-700 text-white rounded w-7 h-7 text-sm leading-none">×</button>
+      </div>`).join('');
+
+    return `
+      <section class="bg-surface rounded-lg border border-border p-4 mt-4">
+        <h2 class="font-semibold text-txt mb-1">Fotos</h2>
+        <p class="text-xs text-muted mb-3">
+          Foto antippen = als Startbild/Vorschaubild festlegen. Mehrere Dateien auswählbar,
+          JPG / PNG / WebP, je max 10 MB (werden auf 1600 px verkleinert).
+        </p>
+        ${fotos.length
+          ? `<div class="grid grid-cols-3 gap-2 mb-3" id="gal-liste">${thumbs}</div>`
+          : '<p class="text-sm text-muted mb-3 text-center">Noch keine Fotos hinterlegt.</p>'}
+        <div class="flex gap-2 flex-wrap items-stretch">
+          <input type="file" id="gal-input" accept="image/jpeg,image/png,image/webp" multiple
+                 class="flex-1 min-w-0 text-sm border border-border rounded-lg p-2 bg-surface text-txt">
+          <button id="gal-upload" type="button"
+                  class="bg-accent hover:brightness-95 text-accent-ink min-h-[44px] px-4 rounded-lg text-sm">
+            Hochladen
+          </button>
+        </div>
+      </section>`;
+  }
+
+  function setupGalerie() {
+    document.getElementById('gal-upload').onclick = async () => {
+      const input = document.getElementById('gal-input');
+      if (!input.files.length) { toast('Bitte zuerst Fotos auswählen.', 'error'); return; }
+      const fd = new FormData();
+      Array.from(input.files).slice(0, 10).forEach((f) => fd.append('dateien', f));
+      toast('Fotos werden hochgeladen…', 'info', 2000);
+      try {
+        const m = await api.post(`/api/admin/maschinen/${maschineId}/fotos`, fd);
+        Object.assign(daten, ausMaschine(m));
+        toast('Fotos hochgeladen.', 'success');
+        zeichne();
+      } catch (err) {
+        toast(err.detail || 'Upload fehlgeschlagen.', 'error');
+      }
+    };
+
+    document.querySelectorAll('[data-gal-start]').forEach((el) => {
+      el.onclick = async () => {
+        const foto = daten.fotos[+el.dataset.galStart];
+        if (!foto || foto.ist_start) return;
+        try {
+          const m = await api.put(`/api/admin/maschinen/${maschineId}/fotos/${foto.id}/start`);
+          Object.assign(daten, ausMaschine(m));
+          toast('Startbild festgelegt.', 'success');
+          zeichne();
+        } catch (err) {
+          toast(err.detail || 'Festlegen fehlgeschlagen.', 'error');
+        }
+      };
+    });
+
+    document.querySelectorAll('[data-gal-del]').forEach((el) => {
+      el.onclick = async () => {
+        const foto = daten.fotos[+el.dataset.galDel];
+        if (!foto) return;
+        const ok = await confirmDialog('Foto wirklich löschen?',
+          { dangerous: true, okLabel: 'Löschen' });
+        if (!ok) return;
+        try {
+          const m = await api.del(`/api/admin/maschinen/${maschineId}/fotos/${foto.id}`);
+          Object.assign(daten, ausMaschine(m));
+          toast('Foto gelöscht.', 'success');
+          zeichne();
+        } catch (err) {
+          toast(err.detail || 'Löschen fehlgeschlagen.', 'error');
+        }
+      };
+    });
+  }
+
+  function setupAnleitungSuche() {
+    const btn = document.getElementById('anl-suche');
+    if (!btn) return;
+    btn.onclick = async () => {
+      btn.disabled = true;
+      btn.textContent = 'Suche läuft… (bis zu 1 Minute)';
+      try {
+        const m = await api.post(`/api/admin/maschinen/${maschineId}/anleitung-suche`);
+        Object.assign(daten, ausMaschine(m));
+        toast('Anleitung gefunden und hinterlegt.', 'success');
+        zeichne();
+      } catch (err) {
+        toast(err.detail || 'Keine Anleitung gefunden.', 'error', 6000);
+        btn.disabled = false;
+        btn.textContent = '🔎 Automatisch im Internet suchen (KI)';
+      }
+    };
   }
 
   // -----------------------------------------------------------
@@ -287,17 +399,24 @@ export async function renderAdminMaschineForm(maschineId) {
           if (!code) { toast('Maschinen-Code ist Pflicht.', 'error'); return; }
           const neu = await api.post('/api/admin/maschinen', { maschinen_code: code, ...body });
           toast('Maschine angelegt.', 'success');
-          // Gewähltes Analyse-Foto als Maschinen-Foto übernehmen. Schlägt nur
-          // der Upload fehl, bleibt die Maschine angelegt (Foto geht nachträglich).
-          if (kiGewaehlt >= 0 && kiDateien[kiGewaehlt]) {
+          // Alle Analyse-Fotos an die Maschine hängen; das angetippte wird
+          // Startbild. Schlägt nur der Upload fehl, bleibt die Maschine angelegt.
+          if (kiDateien.length) {
             const fd = new FormData();
-            fd.append('datei', kiDateien[kiGewaehlt]);
+            kiDateien.forEach((f) => fd.append('dateien', f));
+            fd.append('start_index', String(kiGewaehlt >= 0 ? kiGewaehlt : 0));
             try {
-              await api.post(`/api/admin/maschinen/${neu.id}/foto`, fd);
-              toast('Foto übernommen.', 'success');
+              await api.post(`/api/admin/maschinen/${neu.id}/fotos`, fd);
+              toast(`${kiDateien.length} Foto${kiDateien.length === 1 ? '' : 's'} übernommen.`, 'success');
             } catch (fotoErr) {
               toast('Maschine angelegt, aber Foto-Upload fehlgeschlagen – bitte im Bearbeiten-Modus nachholen.', 'error', 6000);
             }
+          }
+          // Anleitung im Hintergrund suchen - der Server pflegt sie selbst ein,
+          // auch wenn wir gleich zur Übersicht wechseln.
+          if (body.hersteller && body.name) {
+            api.post(`/api/admin/maschinen/${neu.id}/anleitung-suche`).catch(() => {});
+            toast('Bedienungsanleitung wird im Hintergrund gesucht…', 'info', 4000);
           }
         }
         location.hash = '#/admin/maschinen';
@@ -383,7 +502,7 @@ export async function renderAdminMaschineForm(maschineId) {
 }
 
 // HTML einer Upload-Sektion: Drag-Zone + File-Input + Hochladen-/Entfernen-Buttons.
-function uploadSektion(prefix, titel, url, pfad, hinweis, accept, istBild = true) {
+function uploadSektion(prefix, titel, url, pfad, hinweis, accept, istBild = true, extra = '') {
   const vorschau = url
     ? (istBild
         ? `<img src="${escapeHtml(safeUrl(apiUrl(url)))}" class="max-h-64 mx-auto mb-3 object-contain rounded">`
@@ -413,13 +532,14 @@ function uploadSektion(prefix, titel, url, pfad, hinweis, accept, istBild = true
         ${delBtn}
       </div>
       <p class="text-xs text-muted mt-2">${escapeHtml(hinweis)}</p>
+      ${extra}
     </section>`;
 }
 
 function leerDaten() {
   return {
     maschinen_code: '', name: '', platznummer: '', hersteller: '', seriennummer: '',
-    beschreibung: '', status: 'verfuegbar', zubehoer: [],
+    beschreibung: '', status: 'verfuegbar', zubehoer: [], fotos: [],
     foto_pfad: null, foto_url: null, anleitung_pfad: null, anleitung_url: null,
   };
 }
@@ -434,6 +554,7 @@ function ausMaschine(m) {
     beschreibung: m.beschreibung || '',
     status: m.status,
     zubehoer: m.zubehoer_liste.map((z) => z.bezeichnung),
+    fotos: m.fotos || [],
     foto_pfad: m.foto_pfad,
     foto_url:  m.foto_url,
     anleitung_pfad: m.anleitung_pfad,

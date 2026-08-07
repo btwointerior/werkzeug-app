@@ -1,24 +1,26 @@
 """Admin-Endpunkte: Maschinen-/Benutzer-Verwaltung, Uploads, QR-Codes, Statistiken."""
 
 import io
+import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
 from fastapi import (
-    APIRouter, Depends, File, HTTPException, Response, UploadFile, status,
+    APIRouter, Depends, File, Form, HTTPException, Response, UploadFile, status,
 )
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 
-from backend import ki_analyse, qr
+from backend import anleitung_suche, ki_analyse, qr
 from backend.config import settings
 from backend.dependencies import require_admin
 from backend.models import (
     Ausleihe,
     Benutzer,
     Maschine,
+    MaschinenFoto,
     MaschinenStatus,
     Zubehoer,
     get_db,
@@ -40,6 +42,8 @@ from backend.schemas import (
     UeberfaelligeAusleiheEintrag,
 )
 from backend.upload_urls import maschine_zu_out
+
+logger = logging.getLogger("werkzeug_app.admin")
 
 router = APIRouter(
     prefix="/api/admin",
@@ -182,6 +186,9 @@ def maschine_loeschen(maschine_id: int, db: Session = Depends(get_db)) -> None:
         )
     _loesche_datei(maschine.foto_pfad)
     _loesche_datei(maschine.anleitung_pfad)
+    for foto in maschine.fotos:
+        if foto.datei_pfad != maschine.foto_pfad:
+            _loesche_datei(foto.datei_pfad)
     db.delete(maschine)
     db.commit()
 
@@ -223,8 +230,141 @@ def maschine_historie(
 
 
 # ============================================================
-#  Foto-Upload
+#  Fotos (Galerie: N Fotos je Maschine, eines ist Startbild)
 # ============================================================
+
+MAX_FOTOS_JE_UPLOAD = 10
+
+
+def _pruefe_bild_oder_400(datei: UploadFile, inhalt: bytes) -> Image.Image:
+    """Validiert Typ/Größe/Magic-Bytes und gibt das geöffnete Bild zurück."""
+    if datei.content_type not in settings.ERLAUBTE_BILD_TYPEN:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Nur JPG, PNG oder WebP erlaubt.",
+        )
+    if len(inhalt) > settings.MAX_UPLOAD_SIZE:
+        mb = settings.MAX_UPLOAD_SIZE // (1024 * 1024)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Datei zu groß (max {mb} MB).",
+        )
+    try:
+        Image.open(io.BytesIO(inhalt)).verify()
+        return Image.open(io.BytesIO(inhalt))
+    except (UnidentifiedImageError, OSError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Datei ist kein gültiges Bild.",
+        )
+
+
+def _foto_speichern(db: Session, maschine: Maschine, img: Image.Image) -> MaschinenFoto:
+    """Verkleinert das Bild, legt Datei + MaschinenFoto-Zeile an (ohne Commit)."""
+    img.thumbnail((1600, 1600))
+    if img.mode != "RGB":
+        img = img.convert("RGB")
+    foto = MaschinenFoto(maschine_id=maschine.id, datei_pfad="")
+    db.add(foto)
+    db.flush()  # vergibt foto.id für den Dateinamen
+    foto.datei_pfad = f"maschine_{maschine.id}_foto_{foto.id}.jpg"
+    img.save(settings.UPLOAD_DIR / foto.datei_pfad, "JPEG", quality=85, optimize=True)
+    return foto
+
+
+def _setze_startbild(maschine: Maschine, start_foto: MaschinenFoto) -> None:
+    for f in maschine.fotos:
+        f.ist_start = f.id == start_foto.id
+    maschine.foto_pfad = start_foto.datei_pfad
+
+
+@router.post("/maschinen/{maschine_id}/fotos", response_model=MaschineOut)
+async def fotos_hochladen(
+    maschine_id: int,
+    dateien: list[UploadFile] = File(...),
+    start_index: int = Form(-1),
+    db: Session = Depends(get_db),
+    current_user: Benutzer = Depends(require_admin),
+) -> MaschineOut:
+    """Hängt 1-10 Fotos an die Maschine an (JPG/PNG/WebP, je max 10 MB).
+
+    `start_index` (0-basiert, bezogen auf die mitgesendeten Dateien) legt das
+    Startbild fest. Ohne Angabe wird das erste Foto Startbild, falls die
+    Maschine noch keins hat.
+    """
+    maschine = _hole_maschine(db, maschine_id)
+    if not dateien or len(dateien) > MAX_FOTOS_JE_UPLOAD:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Bitte 1 bis {MAX_FOTOS_JE_UPLOAD} Fotos hochladen.",
+        )
+
+    bilder = []
+    for datei in dateien:
+        inhalt = await datei.read()
+        bilder.append(_pruefe_bild_oder_400(datei, inhalt))
+
+    hatte_start = any(f.ist_start for f in maschine.fotos)
+    neue = [_foto_speichern(db, maschine, img) for img in bilder]
+    db.refresh(maschine)
+
+    if 0 <= start_index < len(neue):
+        _setze_startbild(maschine, neue[start_index])
+    elif not hatte_start:
+        _setze_startbild(maschine, neue[0])
+
+    db.commit()
+    db.refresh(maschine)
+    return maschine_zu_out(maschine, current_user.id)
+
+
+@router.put("/maschinen/{maschine_id}/fotos/{foto_id}/start", response_model=MaschineOut)
+def foto_als_start(
+    maschine_id: int,
+    foto_id: int,
+    db: Session = Depends(get_db),
+    current_user: Benutzer = Depends(require_admin),
+) -> MaschineOut:
+    """Legt das angegebene Foto als Startbild/Vorschaubild fest."""
+    maschine = _hole_maschine(db, maschine_id)
+    foto = next((f for f in maschine.fotos if f.id == foto_id), None)
+    if foto is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Foto nicht gefunden."
+        )
+    _setze_startbild(maschine, foto)
+    db.commit()
+    db.refresh(maschine)
+    return maschine_zu_out(maschine, current_user.id)
+
+
+@router.delete("/maschinen/{maschine_id}/fotos/{foto_id}", response_model=MaschineOut)
+def foto_loeschen(
+    maschine_id: int,
+    foto_id: int,
+    db: Session = Depends(get_db),
+    current_user: Benutzer = Depends(require_admin),
+) -> MaschineOut:
+    """Löscht ein einzelnes Foto. War es das Startbild, rückt das nächste nach."""
+    maschine = _hole_maschine(db, maschine_id)
+    foto = next((f for f in maschine.fotos if f.id == foto_id), None)
+    if foto is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Foto nicht gefunden."
+        )
+    war_start = foto.ist_start
+    _loesche_datei(foto.datei_pfad)
+    if maschine.foto_pfad == foto.datei_pfad:
+        maschine.foto_pfad = None
+    db.delete(foto)
+    db.flush()
+    db.refresh(maschine)
+    if war_start and maschine.fotos:
+        _setze_startbild(maschine, maschine.fotos[0])
+    db.commit()
+    db.refresh(maschine)
+    return maschine_zu_out(maschine, current_user.id)
+
 
 @router.post("/maschinen/{maschine_id}/foto", response_model=MaschineOut)
 async def foto_hochladen(
@@ -233,49 +373,13 @@ async def foto_hochladen(
     db: Session = Depends(get_db),
     current_user: Benutzer = Depends(require_admin),
 ) -> MaschineOut:
-    """Lädt ein Foto hoch (JPG/PNG/WebP, max 10 MB).
-
-    Das Foto wird auf max. 1600 px (längste Seite) verkleinert und als JPEG
-    gespeichert. Eine ggf. vorhandene alte Datei wird ersetzt.
-    """
+    """Alt-Endpunkt (eine Datei): hängt das Foto an und macht es zum Startbild."""
     maschine = _hole_maschine(db, maschine_id)
-
-    if datei.content_type not in settings.ERLAUBTE_BILD_TYPEN:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Nur JPG, PNG oder WebP erlaubt.",
-        )
-
     inhalt = await datei.read()
-    if len(inhalt) > settings.MAX_UPLOAD_SIZE:
-        mb = settings.MAX_UPLOAD_SIZE // (1024 * 1024)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Datei zu groß (max {mb} MB).",
-        )
-
-    try:
-        Image.open(io.BytesIO(inhalt)).verify()
-        img = Image.open(io.BytesIO(inhalt))
-    except (UnidentifiedImageError, OSError, ValueError):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Datei ist kein gültiges Bild.",
-        )
-
-    img.thumbnail((1600, 1600))
-    if img.mode != "RGB":
-        img = img.convert("RGB")
-
-    neuer_name = f"maschine_{maschine_id}_foto.jpg"
-    ziel = settings.UPLOAD_DIR / neuer_name
-    img.save(ziel, "JPEG", quality=85, optimize=True)
-
-    # Falls die alte Datei einen anderen Namen hatte (z.B. .png früher), separat löschen.
-    if maschine.foto_pfad and maschine.foto_pfad != neuer_name:
-        _loesche_datei(maschine.foto_pfad)
-
-    maschine.foto_pfad = neuer_name
+    img = _pruefe_bild_oder_400(datei, inhalt)
+    foto = _foto_speichern(db, maschine, img)
+    db.refresh(maschine)
+    _setze_startbild(maschine, foto)
     db.commit()
     db.refresh(maschine)
     return maschine_zu_out(maschine, current_user.id)
@@ -290,8 +394,12 @@ def foto_entfernen(
     db: Session = Depends(get_db),
     current_user: Benutzer = Depends(require_admin),
 ) -> MaschineOut:
-    """Entfernt das Foto der Maschine (Datei + DB-Pfad)."""
+    """Alt-Endpunkt: entfernt das Startbild (nächstes Foto rückt nach)."""
     maschine = _hole_maschine(db, maschine_id)
+    start = next((f for f in maschine.fotos if f.ist_start), None)
+    if start is not None:
+        return foto_loeschen(maschine_id, start.id, db, current_user)
+    # Alt-Datenbestand ohne Galerie-Zeilen: nur foto_pfad leeren.
     _loesche_datei(maschine.foto_pfad)
     maschine.foto_pfad = None
     db.commit()
@@ -402,6 +510,40 @@ async def anleitung_hochladen(
         _loesche_datei(maschine.anleitung_pfad)
 
     maschine.anleitung_pfad = neuer_name
+    db.commit()
+    db.refresh(maschine)
+    return maschine_zu_out(maschine, current_user.id)
+
+
+@router.post("/maschinen/{maschine_id}/anleitung-suche", response_model=MaschineOut)
+def anleitung_suchen(
+    maschine_id: int,
+    db: Session = Depends(get_db),
+    current_user: Benutzer = Depends(require_admin),
+) -> MaschineOut:
+    """Sucht die Bedienungsanleitung (PDF) automatisch im Internet.
+
+    Nutzt Hersteller + Name der Maschine als Suchbegriffe; zu große PDFs werden
+    per Ghostscript verkleinert. Ersetzt eine ggf. vorhandene Anleitung.
+    """
+    maschine = _hole_maschine(db, maschine_id)
+    if not (maschine.hersteller or "").strip() or not (maschine.name or "").strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Für die Suche müssen Hersteller und Name gepflegt sein.",
+        )
+    try:
+        inhalt, quelle = anleitung_suche.suche_anleitung(maschine.hersteller, maschine.name)
+    except anleitung_suche.AnleitungNichtGefunden as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+
+    neuer_name = f"maschine_{maschine_id}_anleitung.pdf"
+    (settings.UPLOAD_DIR / neuer_name).write_bytes(inhalt)
+    if maschine.anleitung_pfad and maschine.anleitung_pfad != neuer_name:
+        _loesche_datei(maschine.anleitung_pfad)
+    maschine.anleitung_pfad = neuer_name
+    logger.info("Anleitung fuer Maschine %s aus %s uebernommen (%d Bytes)",
+                maschine.maschinen_code, quelle, len(inhalt))
     db.commit()
     db.refresh(maschine)
     return maschine_zu_out(maschine, current_user.id)

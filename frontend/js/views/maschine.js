@@ -80,9 +80,17 @@ export async function renderMaschine(code) {
             <div class="text-sm">Die Maschine ist gesperrt und kann nur von einem Admin freigegeben werden.</div>
           </div>` : ''}
 
-        ${m.foto_url ? `
-          <img src="${escapeHtml(safeUrl(apiUrl(m.foto_url)))}" alt="${escapeHtml(m.name)}"
-               class="w-full aspect-video object-contain bg-surface-2 border border-border rounded-lg mb-4">
+        ${m.foto_url || m.fotos.length ? `
+          <img id="maschine-foto" src="${escapeHtml(safeUrl(apiUrl(startFotoUrl(m))))}" alt="${escapeHtml(m.name)}"
+               class="w-full aspect-video object-contain bg-surface-2 border border-border rounded-lg ${m.fotos.length > 1 ? 'mb-2' : 'mb-4'}">
+          ${m.fotos.length > 1 ? `
+            <div class="flex gap-2 overflow-x-auto mb-4">
+              ${m.fotos.map((f, i) => `
+                <button type="button" data-galerie="${i}"
+                        class="shrink-0 rounded-lg overflow-hidden border-2 ${f.ist_start ? 'border-accent' : 'border-border'}">
+                  <img src="${escapeHtml(safeUrl(apiUrl(f.url)))}" class="h-16 w-20 object-cover" alt="Foto ${i + 1}">
+                </button>`).join('')}
+            </div>` : ''}
         ` : `
           <div class="bg-surface-2 border border-border rounded-lg aspect-video flex items-center justify-center text-muted mb-4">
             <div class="text-center">
@@ -138,6 +146,15 @@ export async function renderMaschine(code) {
         </div>
       </div>`;
 
+    // Galerie: Thumbnail antippen wechselt das große Bild.
+    document.querySelectorAll('[data-galerie]').forEach((el) => {
+      el.onclick = () => {
+        const foto = m.fotos[+el.dataset.galerie];
+        const gross = document.getElementById('maschine-foto');
+        if (foto && gross) gross.src = safeUrl(apiUrl(foto.url));
+      };
+    });
+
     const nfcBtn = document.getElementById('btn-nfc-schreiben');
     if (nfcBtn) nfcBtn.onclick = async () => {
       const ok = await confirmDialog(
@@ -169,6 +186,12 @@ export async function renderMaschine(code) {
         }
       };
     }
+  }
+
+  // Startbild bevorzugen; Fallback: altes foto_url-Feld bzw. erstes Galerie-Foto.
+  function startFotoUrl(m) {
+    const start = m.fotos.find((f) => f.ist_start);
+    return (start && start.url) || m.foto_url || (m.fotos[0] && m.fotos[0].url) || '';
   }
 
   function aktionFuerStatus(m, istInhaber, istAdmin) {

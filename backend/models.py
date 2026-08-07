@@ -172,6 +172,12 @@ class Maschine(Base):
         # selbst, damit das Löschen auf der Alt-Prod-DB ohne DB-Kaskade klappt.
         cascade="all, delete-orphan",
     )
+    fotos = relationship(
+        "MaschinenFoto",
+        back_populates="maschine",
+        order_by="MaschinenFoto.id",
+        cascade="all, delete-orphan",
+    )
 
     @property
     def aktuelle_ausleihe(self):
@@ -195,6 +201,31 @@ class Maschine(Base):
 
     def __repr__(self) -> str:
         return f"<Maschine {self.maschinen_code} '{self.name}' [{self.status.value}]>"
+
+
+# --------------------------------------------------------------------
+#  Maschinen-Fotos (1 Maschine -> N Fotos; genau eines ist Startbild)
+# --------------------------------------------------------------------
+
+class MaschinenFoto(Base):
+    """Foto einer Maschine. `Maschine.foto_pfad` spiegelt immer den Pfad des
+    Startbilds, damit bestehende Ansichten/App-Versionen weiterfunktionieren."""
+
+    __tablename__ = "maschinen_fotos"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    maschine_id = Column(
+        Integer, ForeignKey("maschinen.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    datei_pfad = Column(String(255), nullable=False)
+    ist_start = Column(Boolean, default=False, nullable=False)
+    erstellt_am = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    maschine = relationship("Maschine", back_populates="fotos")
+
+    def __repr__(self) -> str:
+        return f"<MaschinenFoto {self.id} m={self.maschine_id} start={self.ist_start}>"
 
 
 # --------------------------------------------------------------------

@@ -18,4 +18,7 @@ def maschine_zu_out(maschine: Maschine, benutzer_id: int) -> MaschineOut:
     if maschine.anleitung_pfad:
         token = create_datei_token(benutzer_id, maschine.anleitung_pfad)
         out.anleitung_url = f"/uploads/{maschine.anleitung_pfad}?t={token}"
+    for foto_out, foto in zip(out.fotos, maschine.fotos):
+        token = create_datei_token(benutzer_id, foto.datei_pfad)
+        foto_out.url = f"/uploads/{foto.datei_pfad}?t={token}"
     return out

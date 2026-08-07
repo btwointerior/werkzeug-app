@@ -65,6 +65,28 @@ def analysiere_fotos(bilder: list[bytes]) -> dict:
     return _parse_antwort(_rufe_bedrock(bilder))
 
 
+def frage_text(prompt: str, max_tokens: int = 300) -> str:
+    """Reine Text-Frage an Claude (Bedrock). Wirft KIAnalyseFehler bei Problemen."""
+    if not ist_konfiguriert() or os.environ.get("WERKZEUG_KI_MOCK"):
+        raise KIAnalyseFehler("KI-Analyse ist nicht konfiguriert.")
+    import boto3
+    from botocore.exceptions import BotoCoreError, ClientError
+
+    client = boto3.client(
+        "bedrock-runtime",
+        region_name=os.environ.get("AWS_REGION", STANDARD_REGION),
+    )
+    try:
+        antwort = client.converse(
+            modelId=os.environ.get("BEDROCK_MODEL_ID", STANDARD_MODEL_ID),
+            messages=[{"role": "user", "content": [{"text": prompt}]}],
+            inferenceConfig={"maxTokens": max_tokens, "temperature": 0},
+        )
+        return antwort["output"]["message"]["content"][0]["text"]
+    except (BotoCoreError, ClientError, KeyError, IndexError, TypeError) as exc:
+        raise KIAnalyseFehler("KI-Dienst ist gerade nicht erreichbar.") from exc
+
+
 def _rufe_bedrock(bilder: list[bytes]) -> str:
     # Import erst hier: Tests/Mock-Betrieb brauchen boto3 nicht.
     import boto3

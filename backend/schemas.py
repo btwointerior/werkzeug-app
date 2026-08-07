@@ -88,6 +88,13 @@ class MaschineKurz(_ORM):
     status: MaschinenStatus
 
 
+class MaschinenFotoOut(_ORM):
+    id: int
+    ist_start: bool
+    # Fertige URL inkl. kurzlebigem Datei-Token (vom Router befüllt, nicht aus DB)
+    url: Optional[str] = None
+
+
 class MaschineOut(_ORM):
     id: int
     maschinen_code: str
@@ -105,6 +112,7 @@ class MaschineOut(_ORM):
     erstellt_am: datetime
     geaendert_am: datetime
     zubehoer_liste: list[ZubehoerOut] = []
+    fotos: list[MaschinenFotoOut] = []
     aktuelle_ausleihe: Optional[AusleiheKurz] = None
 
 
