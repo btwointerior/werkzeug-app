@@ -250,9 +250,10 @@ export async function renderAdminMaschineForm(maschineId) {
       <section class="bg-surface rounded-lg border border-border p-4 mb-4">
         <h2 class="font-semibold text-txt mb-1">Per Foto ausfüllen (KI)</h2>
         <p class="text-xs text-muted mb-3">
-          Typenschild/Etiketten fotografieren oder auswählen (bis zu 5 Fotos) –
-          Name, Hersteller und Seriennummer werden automatisch vorgeschlagen.
-          Gerätenummer und Platznummer trägst du weiterhin selbst ein.
+          Typenschild/Etiketten fotografieren oder auswählen (bis zu 5 Fotos –
+          einfach mehrmals aufnehmen, jedes Foto wird angehängt). Name, Hersteller
+          und Seriennummer werden automatisch vorgeschlagen. Gerätenummer und
+          Platznummer trägst du weiterhin selbst ein.
         </p>
         <input type="file" id="ki-input" accept="image/jpeg,image/png,image/webp" multiple
                class="w-full text-sm border border-border rounded-lg p-2 bg-surface text-txt">
@@ -275,16 +276,25 @@ export async function renderAdminMaschineForm(maschineId) {
     const wahlHinweis = document.getElementById('ki-foto-wahl');
     const hinweisEl = document.getElementById('ki-hinweis');
 
+    const zeichneStatus = () => {
+      analyseBtn.disabled = !kiDateien.length;
+      wahlHinweis.classList.toggle('hidden', !kiDateien.length);
+    };
+
     const zeichneThumbs = () => {
       thumbs.innerHTML = kiUrls.map((url, i) => `
-        <button type="button" data-ki-thumb="${i}"
-                class="relative rounded-lg overflow-hidden border-2 ${i === kiGewaehlt ? 'border-accent' : 'border-border'}"
-                aria-pressed="${i === kiGewaehlt}">
-          <img src="${escapeHtml(url)}" class="h-24 w-full object-cover" alt="Foto ${i + 1}">
-          ${i === kiGewaehlt
-            ? '<span class="absolute top-1 right-1 bg-accent text-accent-ink text-xs rounded px-1.5 py-0.5">Maschinen-Foto</span>'
-            : ''}
-        </button>`).join('');
+        <div class="relative">
+          <button type="button" data-ki-thumb="${i}"
+                  class="block w-full rounded-lg overflow-hidden border-2 ${i === kiGewaehlt ? 'border-accent' : 'border-border'}"
+                  aria-pressed="${i === kiGewaehlt}">
+            <img src="${escapeHtml(url)}" class="h-24 w-full object-cover" alt="Foto ${i + 1}">
+            ${i === kiGewaehlt
+              ? '<span class="absolute bottom-1 left-1 bg-accent text-accent-ink text-xs rounded px-1.5 py-0.5 pointer-events-none">Maschinen-Foto</span>'
+              : ''}
+          </button>
+          <button type="button" data-ki-del="${i}" aria-label="Foto entfernen"
+                  class="absolute top-1 right-1 bg-rose-600 hover:bg-rose-700 text-white rounded w-7 h-7 text-sm leading-none">×</button>
+        </div>`).join('');
       thumbs.querySelectorAll('[data-ki-thumb]').forEach((el) => {
         el.onclick = () => {
           const i = +el.dataset.kiThumb;
@@ -292,16 +302,32 @@ export async function renderAdminMaschineForm(maschineId) {
           zeichneThumbs();
         };
       });
+      thumbs.querySelectorAll('[data-ki-del]').forEach((el) => {
+        el.onclick = () => {
+          const i = +el.dataset.kiDel;
+          URL.revokeObjectURL(kiUrls[i]);
+          kiDateien.splice(i, 1);
+          kiUrls.splice(i, 1);
+          if (kiGewaehlt === i) kiGewaehlt = kiDateien.length ? 0 : -1;
+          else if (kiGewaehlt > i) kiGewaehlt -= 1;
+          zeichneStatus();
+          zeichneThumbs();
+        };
+      });
     };
 
     input.onchange = () => {
-      kiUrls.forEach((u) => URL.revokeObjectURL(u));
-      kiDateien = Array.from(input.files).slice(0, 5);
-      if (input.files.length > 5) toast('Maximal 5 Fotos – die ersten 5 werden verwendet.', 'info');
-      kiUrls = kiDateien.map((f) => URL.createObjectURL(f));
-      kiGewaehlt = kiDateien.length ? 0 : -1;
-      analyseBtn.disabled = !kiDateien.length;
-      wahlHinweis.classList.toggle('hidden', !kiDateien.length);
+      // Sammeln statt ersetzen: die iPhone-Kamera liefert pro Aufnahme nur EIN
+      // Foto - jede weitere Auswahl/Aufnahme haengt an die bisherigen an.
+      const neue = Array.from(input.files);
+      input.value = '';
+      for (const f of neue) {
+        if (kiDateien.length >= 5) { toast('Maximal 5 Fotos.', 'info'); break; }
+        kiDateien.push(f);
+        kiUrls.push(URL.createObjectURL(f));
+      }
+      if (kiGewaehlt < 0 && kiDateien.length) kiGewaehlt = 0;
+      zeichneStatus();
       zeichneThumbs();
     };
 
