@@ -159,9 +159,10 @@ def _waehle_mit_ki(kandidaten: list[str], hersteller: str, name: str) -> list[st
             f"Maschine \"{hersteller} {name}\". Kandidaten-PDF-URLs:\n{liste}\n\n"
             "Antworte NUR mit einem JSON-Array der Indizes, sortiert nach "
             "Wahrscheinlichkeit, dass es die offizielle Bedienungs-/Betriebs"
-            "anleitung genau dieses Geräts ist. Broschüren, Kataloge, Etiketten/"
-            "Label, Ersatzteillisten und Anleitungen anderer Modelle weglassen. "
-            "Leeres Array [], wenn nichts passt."
+            "anleitung genau dieses Geräts ist. Bevorzuge deutschsprachige "
+            "Versionen (de/DE im Pfad) vor englischen. Broschüren, Kataloge, "
+            "Etiketten/Label, Ersatzteillisten und Anleitungen anderer Modelle "
+            "weglassen. Leeres Array [], wenn nichts passt."
         )
         m = re.search(r"\[[^\]]*\]", antwort)
         indizes = json.loads(m.group(0)) if m else None
