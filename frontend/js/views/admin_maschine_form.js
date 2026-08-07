@@ -3,6 +3,7 @@
 // für den Edit-Fall aus GET /api/admin/maschinen und filtern nach ID.
 
 import { api } from '../api.js';
+import { apiUrl } from '../api_base.js';
 import { btnClasses, confirmDialog, escapeHtml, safeUrl, spinner, toast } from '../ui.js';
 
 export async function renderAdminMaschineForm(maschineId) {
@@ -49,7 +50,8 @@ export async function renderAdminMaschineForm(maschineId) {
         </h1>
         ${maschineId ? '' : kiSektion()}
         <form id="form" class="space-y-3 bg-surface border border-border rounded-lg p-4">
-          ${feldText('maschinen_code', 'Maschinen-Code (z.B. M-0042)', daten.maschinen_code, { uppercase: true, disabled: !!maschineId })}
+          ${feldText('maschinen_code', 'Maschinen-Code (z.B. M-005)', daten.maschinen_code, { uppercase: true, disabled: !!maschineId })}
+          ${maschineId ? '' : '<p id="code-hinweis" class="text-xs text-muted -mt-2"></p>'}
           ${feldText('name', 'Name', daten.name, { required: true })}
           ${feldText('platznummer', 'Platznummer', daten.platznummer)}
           ${feldText('hersteller', 'Hersteller', daten.hersteller)}
@@ -103,7 +105,28 @@ export async function renderAdminMaschineForm(maschineId) {
       setupUpload('anl');
     } else {
       setupKiAnalyse();
+      setupCodeHinweis();
     }
+  }
+
+  // Nächste freie Maschinennummer (Format M-xxx) als antippbaren Hinweis anzeigen.
+  async function setupCodeHinweis() {
+    try {
+      const alle = await api.get('/api/admin/maschinen');
+      let max = 0;
+      for (const m of alle) {
+        const t = /^M-(\d+)$/.exec(m.maschinen_code || '');
+        if (t) max = Math.max(max, parseInt(t[1], 10));
+      }
+      const code = 'M-' + String(max + 1).padStart(3, '0');
+      const el = document.getElementById('code-hinweis');
+      const input = document.getElementById('f-maschinen_code');
+      if (!el || !input) return;
+      el.innerHTML = `Nächste freie Nummer:
+        <button type="button" id="code-uebernehmen" class="text-accent underline font-medium">${code}</button>
+        (antippen zum Übernehmen)`;
+      document.getElementById('code-uebernehmen').onclick = () => { input.value = code; };
+    } catch { /* Hinweis ist optional – Fehler hier nie blockierend */ }
   }
 
   // -----------------------------------------------------------
@@ -363,8 +386,8 @@ export async function renderAdminMaschineForm(maschineId) {
 function uploadSektion(prefix, titel, url, pfad, hinweis, accept, istBild = true) {
   const vorschau = url
     ? (istBild
-        ? `<img src="${escapeHtml(safeUrl(url))}" class="max-h-64 mx-auto mb-3 object-contain rounded">`
-        : `<a href="${escapeHtml(safeUrl(url))}" target="_blank" rel="noopener"
+        ? `<img src="${escapeHtml(safeUrl(apiUrl(url)))}" class="max-h-64 mx-auto mb-3 object-contain rounded">`
+        : `<a href="${escapeHtml(safeUrl(apiUrl(url)))}" target="_blank" rel="noopener"
               class="block text-sm text-accent underline mb-3 text-center">Aktuelle Datei öffnen</a>`)
     : `<p class="text-sm text-muted mb-3 text-center">Noch nichts hinterlegt.</p>`;
 

@@ -7,6 +7,7 @@
 //   defekt | wartung        → Info-Box; Admin: FREIGEBEN (orange)
 
 import { api } from '../api.js';
+import { apiUrl } from '../api_base.js';
 import { state } from '../app.js';
 import { istNfcVerfuegbar, nfcSchreibeUndVersiegele } from '../nfc.js';
 import {
@@ -49,7 +50,7 @@ export async function renderMaschine(code) {
     const aktion = aktionFuerStatus(m, userIstInhaber, userIstAdmin);
 
     app.innerHTML = `
-      <main class="max-w-3xl mx-auto pb-40 pt-4 px-4">
+      <main class="max-w-3xl mx-auto pb-aktionsleiste pt-4 px-4">
         <div class="flex items-start justify-between gap-3 mb-3">
           <div class="min-w-0">
             <h1 class="text-2xl font-bold text-txt break-words">${escapeHtml(m.name)}</h1>
@@ -80,7 +81,7 @@ export async function renderMaschine(code) {
           </div>` : ''}
 
         ${m.foto_url ? `
-          <img src="${escapeHtml(safeUrl(m.foto_url))}" alt="${escapeHtml(m.name)}"
+          <img src="${escapeHtml(safeUrl(apiUrl(m.foto_url)))}" alt="${escapeHtml(m.name)}"
                class="w-full aspect-video object-contain bg-surface-2 border border-border rounded-lg mb-4">
         ` : `
           <div class="bg-surface-2 border border-border rounded-lg aspect-video flex items-center justify-center text-muted mb-4">
@@ -115,7 +116,7 @@ export async function renderMaschine(code) {
           </div>` : ''}
 
         ${m.anleitung_url ? `
-          <a href="${escapeHtml(safeUrl(m.anleitung_url))}" target="_blank" rel="noopener"
+          <a href="${escapeHtml(safeUrl(apiUrl(m.anleitung_url)))}" target="_blank" rel="noopener"
              class="${btnClasses('secondary')} w-full mb-4">
             📄 Betriebsanleitung öffnen
           </a>
