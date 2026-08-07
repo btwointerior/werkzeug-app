@@ -144,7 +144,7 @@ export async function renderAdminMaschineForm(maschineId) {
           <img src="${escapeHtml(safeUrl(apiUrl(f.url)))}" class="h-24 w-full object-cover" alt="Foto ${i + 1}">
         </button>
         ${f.ist_start
-          ? '<span class="absolute top-1 left-1 bg-accent text-accent-ink text-xs rounded px-1.5 py-0.5 pointer-events-none">Startbild</span>'
+          ? '<span class="absolute bottom-1 left-1 w-6 h-6 rounded-full bg-accent text-accent-ink text-sm font-bold flex items-center justify-center pointer-events-none">✓</span>'
           : ''}
         <button type="button" data-gal-del="${i}" aria-label="Foto löschen"
                 class="absolute top-1 right-1 bg-rose-600 hover:bg-rose-700 text-white rounded w-7 h-7 text-sm leading-none">×</button>
@@ -272,14 +272,16 @@ export async function renderAdminMaschineForm(maschineId) {
         </p>
         ${navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? `
           <button type="button" id="ki-kamera"
-                  class="${btnClasses('secondary')} w-full mb-2 text-sm">
-            📷 Fotos aufnehmen (mehrere nacheinander)
-          </button>` : ''}
+                  class="${btnClasses('primary')} w-full mb-2">
+            📷 Fotos aufnehmen (mehrere hintereinander)
+          </button>
+          <p class="text-xs text-muted mb-2 text-center">oder aus der Fotothek / Dateien wählen:</p>` : ''}
         <input type="file" id="ki-input" accept="image/jpeg,image/png,image/webp" multiple
                class="w-full text-sm border border-border rounded-lg p-2 bg-surface text-txt">
         <div id="ki-thumbs" class="grid grid-cols-3 gap-2 my-2"></div>
         <p id="ki-foto-wahl" class="text-xs text-muted mb-2 hidden">
-          Tippe ein Foto an, um es nach dem Anlegen als Maschinen-Foto zu übernehmen (optional).
+          Alle Fotos werden der Maschine zugeordnet – das mit ✓ markierte
+          (antippen zum Wechseln) wird das Vorschaubild.
         </p>
         <button type="button" id="ki-analyse" disabled
                 class="bg-accent hover:brightness-95 text-accent-ink min-h-[44px] px-4 rounded-lg text-sm w-full disabled:opacity-50">
@@ -309,7 +311,7 @@ export async function renderAdminMaschineForm(maschineId) {
                   aria-pressed="${i === kiGewaehlt}">
             <img src="${escapeHtml(url)}" class="h-24 w-full object-cover" alt="Foto ${i + 1}">
             ${i === kiGewaehlt
-              ? '<span class="absolute bottom-1 left-1 bg-accent text-accent-ink text-xs rounded px-1.5 py-0.5 pointer-events-none">Maschinen-Foto</span>'
+              ? '<span class="absolute bottom-1 left-1 w-6 h-6 rounded-full bg-accent text-accent-ink text-sm font-bold flex items-center justify-center pointer-events-none">✓</span>'
               : ''}
           </button>
           <button type="button" data-ki-del="${i}" aria-label="Foto entfernen"
