@@ -49,6 +49,15 @@ class LogoutResponse(BaseModel):
     message: str
 
 
+class PasswortAendernRequest(BaseModel):
+    aktuelles_passwort: str = Field(..., min_length=1)
+    neues_passwort: str = Field(..., min_length=4)
+
+
+class PasswortAendernResponse(BaseModel):
+    message: str
+
+
 # ============================================================
 #  Zubehör
 # ============================================================

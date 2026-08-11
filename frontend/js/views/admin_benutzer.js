@@ -2,6 +2,11 @@ import { api } from '../api.js';
 import { state } from '../app.js';
 import { btnClasses, escapeHtml, modal, spinner, toast } from '../ui.js';
 
+// Nur der Haupt-Administrator (Benutzername "admin") darf Admin-Profile
+// bearbeiten/löschen und die Admin-Rolle vergeben — der Server erzwingt das,
+// die UI blendet die entsprechenden Bedienelemente aus.
+const istHauptAdmin = () => state.benutzer?.benutzername === 'admin';
+
 export async function renderAdminBenutzer() {
   const app = document.getElementById('app');
   app.innerHTML = `
@@ -33,10 +38,12 @@ export async function renderAdminBenutzer() {
                 ? `<span data-pw="${b.id}" class="font-mono">••••••••</span>
                    <button data-pwtoggle="${b.id}" data-shown="0"
                            class="text-accent text-xs underline">anzeigen</button>`
-                : `<span class="italic">— (vor Umstellung gesetzt)</span>`}
+                : `<span class="italic">— vom Benutzer geändert</span>`}
             </div>
           </div>
-          <button data-id="${b.id}" class="${btnClasses('secondary')} text-sm flex-shrink-0">Bearbeiten</button>
+          ${b.rolle !== 'admin' || istHauptAdmin()
+            ? `<button data-id="${b.id}" class="${btnClasses('secondary')} text-sm flex-shrink-0">Bearbeiten</button>`
+            : ''}
         </div>`).join('');
       liste.querySelectorAll('[data-id]').forEach((btn) => {
         btn.onclick = () => oeffneFormular(benutzer.find((x) => x.id === +btn.dataset.id));
@@ -92,15 +99,18 @@ export async function renderAdminBenutzer() {
         </div>
         <div>
           <label class="block font-medium text-txt-2 mb-1">Rolle</label>
-          <select id="bu-rolle" class="w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt">
+          <select id="bu-rolle" ${bestand?.benutzername === 'admin' ? 'disabled' : ''}
+                  class="w-full border border-border rounded-lg px-3 py-2 bg-surface text-txt disabled:opacity-60">
             <option value="mitarbeiter" ${bestand?.rolle === 'mitarbeiter' ? 'selected' : ''}>Mitarbeiter</option>
-            <option value="admin"       ${bestand?.rolle === 'admin'       ? 'selected' : ''}>Admin</option>
+            <option value="admin" ${bestand?.rolle === 'admin' ? 'selected' : ''}
+                    ${istHauptAdmin() ? '' : 'disabled'}>Admin${istHauptAdmin() ? '' : ' (nur Haupt-Admin)'}</option>
           </select>
         </div>
         ${!istNeu ? `
           <div>
             <label class="flex items-center gap-2">
-              <input id="bu-aktiv" type="checkbox" ${bestand.aktiv ? 'checked' : ''} class="w-5 h-5 accent-accent">
+              <input id="bu-aktiv" type="checkbox" ${bestand.aktiv ? 'checked' : ''}
+                     ${bestand.benutzername === 'admin' ? 'disabled' : ''} class="w-5 h-5 accent-accent">
               <span>Aktiv (Häkchen entfernen = sperren)</span>
             </label>
           </div>

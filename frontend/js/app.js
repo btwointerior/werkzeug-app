@@ -3,6 +3,7 @@
 import { api, getToken, clearToken } from './api.js';
 import { btnClasses, escapeHtml, logoMarkup, modal, toast } from './ui.js';
 import { scanQr } from './scanner.js';
+import { passwortAendernDialog } from './passwort.js';
 import { holeWerkzeugCode } from './scanner_quelle.js';
 import { istNfcVerfuegbar, nfcLeseCode } from './nfc.js';
 
@@ -100,9 +101,13 @@ function renderChrome() {
       </div>
       <div class="flex items-center gap-3">
         <span class="text-sm text-muted hidden sm:inline">${escapeHtml(state.benutzer.voller_name)}</span>
+        <button id="btn-passwort" aria-label="Passwort ändern" title="Passwort ändern"
+                class="${btnClasses('ghost')} px-3 min-h-[40px] text-sm">🔑</button>
         <button id="btn-logout" class="${btnClasses('ghost')} px-3 min-h-[40px] text-sm">Abmelden</button>
       </div>
     </div>`;
+  document.getElementById('btn-passwort').onclick = () =>
+    passwortAendernDialog().catch((e) => console.error(e));
   document.getElementById('btn-logout').onclick = logout;
 
   const links = [

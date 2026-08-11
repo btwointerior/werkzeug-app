@@ -104,11 +104,15 @@ class Benutzer(Base):
     def voller_name(self) -> str:
         return f"{self.vorname} {self.nachname}"
 
-    def setze_passwort(self, klartext: str) -> None:
+    def setze_passwort(self, klartext: str, merke_klartext: bool = True) -> None:
         """Passwort als Hash speichern (für die Anmeldung maßgeblich) UND zusätzlich im
-        Klartext (siehe passwort_klartext) für die Admin-Anzeige."""
+        Klartext (siehe passwort_klartext) für die Admin-Anzeige.
+
+        Bei `merke_klartext=False` (Selbst-Änderung durch den Benutzer) wird der
+        Klartext gelöscht — der Admin sieht das Passwort dann nicht mehr, kann es
+        aber weiterhin zurücksetzen."""
         self.passwort_hash = pwd_context.hash(klartext)
-        self.passwort_klartext = klartext
+        self.passwort_klartext = klartext if merke_klartext else None
 
     def pruefe_passwort(self, klartext: str) -> bool:
         """Eingegebenes Passwort gegen Hash prüfen."""

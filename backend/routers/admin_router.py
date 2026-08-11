@@ -22,6 +22,7 @@ from backend.models import (
     Maschine,
     MaschinenFoto,
     MaschinenStatus,
+    Rolle,
     Zubehoer,
     get_db,
 )
@@ -44,6 +45,10 @@ from backend.schemas import (
 from backend.upload_urls import maschine_zu_out
 
 logger = logging.getLogger("werkzeug_app.admin")
+
+# Benutzername des Haupt-Administrators: nur dieses Konto darf Admin-Profile
+# bearbeiten/löschen und die Admin-Rolle vergeben.
+HAUPT_ADMIN = "admin"
 
 router = APIRouter(
     prefix="/api/admin",
@@ -624,9 +629,18 @@ def benutzer_liste(db: Session = Depends(get_db)) -> list[Benutzer]:
     "/benutzer", response_model=BenutzerOut, status_code=status.HTTP_201_CREATED,
 )
 def benutzer_anlegen(
-    daten: BenutzerCreate, db: Session = Depends(get_db)
+    daten: BenutzerCreate,
+    db: Session = Depends(get_db),
+    current_user: Benutzer = Depends(require_admin),
 ) -> Benutzer:
-    """Legt einen neuen Benutzer an. 400 wenn der Benutzername bereits vergeben ist."""
+    """Legt einen neuen Benutzer an. 400 wenn der Benutzername bereits vergeben ist.
+
+    Die Admin-Rolle darf nur der Haupt-Administrator vergeben."""
+    if daten.rolle == Rolle.ADMIN and current_user.benutzername != HAUPT_ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Nur der Haupt-Administrator darf die Admin-Rolle vergeben.",
+        )
     if (
         db.query(Benutzer)
         .filter(Benutzer.benutzername == daten.benutzername)
@@ -655,14 +669,43 @@ def benutzer_bearbeiten(
     benutzer_id: int,
     daten: BenutzerUpdate,
     db: Session = Depends(get_db),
+    current_user: Benutzer = Depends(require_admin),
 ) -> Benutzer:
-    """Bearbeitet einen Benutzer (auch zum Sperren via `aktiv=false` oder Passwort-Reset)."""
+    """Bearbeitet einen Benutzer (auch zum Sperren via `aktiv=false` oder Passwort-Reset).
+
+    Admin-Profile bearbeiten und die Admin-Rolle vergeben darf nur der
+    Haupt-Administrator; das Konto selbst kann nie gesperrt oder herabgestuft
+    werden (Lockout-Schutz)."""
     benutzer = db.query(Benutzer).filter(Benutzer.id == benutzer_id).first()
     if benutzer is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Benutzer nicht gefunden."
         )
     update_data = daten.model_dump(exclude_unset=True)
+
+    ist_haupt_admin = current_user.benutzername == HAUPT_ADMIN
+    if benutzer.rolle == Rolle.ADMIN and not ist_haupt_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Nur der Haupt-Administrator darf Admin-Profile bearbeiten.",
+        )
+    if update_data.get("rolle") == Rolle.ADMIN and not ist_haupt_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Nur der Haupt-Administrator darf die Admin-Rolle vergeben.",
+        )
+    if benutzer.benutzername == HAUPT_ADMIN:
+        if "rolle" in update_data and update_data["rolle"] != Rolle.ADMIN:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Das Konto 'admin' kann nicht herabgestuft werden.",
+            )
+        if update_data.get("aktiv") is False:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Das Konto 'admin' kann nicht gesperrt werden.",
+            )
+
     neues_passwort = update_data.pop("neues_passwort", None)
     for feld, wert in update_data.items():
         setattr(benutzer, feld, wert)
@@ -696,6 +739,11 @@ def benutzer_loeschen(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Sie können sich nicht selbst löschen.",
+        )
+    if benutzer.rolle == Rolle.ADMIN and current_user.benutzername != HAUPT_ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Nur der Haupt-Administrator darf Admin-Profile löschen.",
         )
     hat_offene_ausleihe = (
         db.query(Ausleihe)

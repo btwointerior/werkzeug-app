@@ -11,6 +11,8 @@ from backend.schemas import (
     BenutzerKurz,
     LoginRequest,
     LogoutResponse,
+    PasswortAendernRequest,
+    PasswortAendernResponse,
     TokenResponse,
 )
 
@@ -60,6 +62,37 @@ def logout(_: Benutzer = Depends(get_current_user)) -> LogoutResponse:
     return LogoutResponse(
         message="Logout erfolgreich. Token bitte clientseitig löschen."
     )
+
+
+@router.post("/passwort-aendern", response_model=PasswortAendernResponse)
+def passwort_aendern(
+    daten: PasswortAendernRequest,
+    request: Request,
+    current_user: Benutzer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> PasswortAendernResponse:
+    """Ändert das eigene Passwort (jeder eingeloggte Benutzer).
+
+    Das aktuelle Passwort ist Pflicht (Schutz bei offen liegendem Gerät) und
+    läuft über dieselbe Brute-Force-Drossel wie der Login. Nach der Änderung
+    wird der Klartext gelöscht — der Admin sieht das Passwort nicht mehr,
+    kann aber weiterhin ein neues setzen (dann wieder mit Klartext-Anzeige).
+    """
+    ip = request.client.host if request.client else "unbekannt"
+    drossel_key = f"pwae:{ip}:{current_user.benutzername}"
+    rate_limit.pruefe(drossel_key)
+
+    if not current_user.pruefe_passwort(daten.aktuelles_passwort):
+        rate_limit.merke_fehlversuch(drossel_key)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Das aktuelle Passwort ist falsch.",
+        )
+
+    rate_limit.reset(drossel_key)
+    current_user.setze_passwort(daten.neues_passwort, merke_klartext=False)
+    db.commit()
+    return PasswortAendernResponse(message="Passwort erfolgreich geändert.")
 
 
 @router.get("/me", response_model=BenutzerKurz)
