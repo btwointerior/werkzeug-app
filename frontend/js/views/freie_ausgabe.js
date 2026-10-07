@@ -48,6 +48,10 @@ export async function neueFreieAusgabe() {
               class="w-full border border-border rounded-lg px-3 py-2 text-base bg-surface text-txt placeholder:text-muted mb-1"></textarea>
     <p id="fa-text-fehler" class="text-sm text-rose-600 mb-3 hidden">Bitte eine Beschreibung eingeben.</p>
 
+    <label class="block text-sm font-medium text-txt-2 mb-1 mt-3" for="fa-baustelle">Baustelle <span class="text-muted font-normal">(optional)</span></label>
+    <input id="fa-baustelle" type="text" maxlength="120" placeholder="z.B. Klinikum Böblingen"
+           class="w-full border border-border rounded-lg px-3 py-2 text-base bg-surface text-txt placeholder:text-muted">
+
     <p class="text-sm text-muted mb-2 mt-3">An wen?</p>
     <div class="space-y-2 mb-2">
       <label class="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-surface-2">
@@ -141,6 +145,8 @@ export async function neueFreieAusgabe() {
 
           const fd = new FormData();
           fd.append('beschreibung', text);
+          const baustelle = body.querySelector('#fa-baustelle').value.trim();
+          if (baustelle) fd.append('baustelle', baustelle);
           if (team) fd.append('externes_team', team);
           fotos.forEach((f) => fd.append('dateien', f, f.name));
           try {
@@ -219,6 +225,7 @@ export function freieAusgabeKarte(a, { aktion = '', mitBenutzer = false } = {}) 
       <div class="min-w-0 flex-1">
         <div class="font-semibold text-txt [overflow-wrap:anywhere]">${escapeHtml(a.beschreibung)}</div>
         <div class="text-sm text-muted">${[wer, an].filter(Boolean).join(' ')}</div>
+        ${a.baustelle ? `<div class="text-sm text-txt-2">🏗️ ${escapeHtml(a.baustelle)}</div>` : ''}
         <div class="text-sm text-muted">${zeit}${a.ist_offen ? '' : ' · <span class="text-ok">zurück</span>'}</div>
         ${a.rueckgabe_kommentar ? `<div class="text-xs mt-1 text-txt-2 italic">„${escapeHtml(a.rueckgabe_kommentar)}"</div>` : ''}
         ${weitere ? `<div class="mt-1">${weitere}</div>` : ''}

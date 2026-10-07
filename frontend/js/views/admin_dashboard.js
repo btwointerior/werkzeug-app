@@ -57,7 +57,7 @@ export async function renderAdminDashboard() {
           ${stats.ueberfaellige_freie.map((u) => `
             <li class="border border-broken/30 bg-broken/10 rounded p-3 text-sm">
               <a href="#/admin/freie-ausgaben" class="font-medium text-broken hover:underline">
-                📦 ${escapeHtml(u.beschreibung)}
+                📦 ${escapeHtml(u.beschreibung)}${u.baustelle ? ` <span class="font-normal">· ${escapeHtml(u.baustelle)}</span>` : ''}
               </a>
               <div class="text-txt-2 mt-1">
                 ${escapeHtml(u.benutzer.voller_name)}${u.externes_team_name ? ` für ${escapeHtml(u.externes_team_name)}` : ''} — ${zeitseit(u.ausgabe_zeitpunkt)}

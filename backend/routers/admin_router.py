@@ -820,6 +820,7 @@ def statistiken(db: Session = Depends(get_db)) -> StatistikenOut:
         UeberfaelligeFreieEintrag(
             id=f.id,
             beschreibung=f.beschreibung,
+            baustelle=f.baustelle,
             benutzer=BenutzerKurz.model_validate(f.benutzer),
             externes_team_name=f.externes_team_name,
             ausgabe_zeitpunkt=f.ausgabe_zeitpunkt,
@@ -850,7 +851,7 @@ def freie_ausgaben_liste(
     """Historie aller freien Ausgaben (neueste zuerst).
 
     `offen=true` nur offene, `offen=false` nur abgeschlossene, sonst alle.
-    `suche` filtert (case-insensitiv) über Beschreibung, Team und Benutzername.
+    `suche` filtert (case-insensitiv) über Beschreibung, Baustelle, Team und Benutzername.
     """
     q = db.query(FreieAusgabe).options(
         selectinload(FreieAusgabe.fotos),
@@ -867,6 +868,7 @@ def freie_ausgaben_liste(
         zeilen = [
             z for z in zeilen
             if s_ in z.beschreibung.lower()
+            or s_ in (z.baustelle or "").lower()
             or s_ in (z.externes_team_name or "").lower()
             or s_ in z.benutzer.voller_name.lower()
             or s_ in z.benutzer.benutzername.lower()

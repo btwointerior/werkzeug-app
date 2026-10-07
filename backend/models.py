@@ -423,6 +423,9 @@ class FreieAusgabe(Base):
         Integer, ForeignKey("externe_teams.id"), nullable=True, index=True
     )
     beschreibung = Column(Text, nullable=False)
+    # Optional: auf welcher Baustelle das Teil im Einsatz ist.
+    # (Nach Ersteinführung ergänzt → auf Bestands-DB per ALTER TABLE nachziehen.)
+    baustelle = Column(String(120), nullable=True)
     ausgabe_zeitpunkt = Column(
         DateTime, default=lambda: datetime.now(timezone.utc),
         nullable=False, index=True,

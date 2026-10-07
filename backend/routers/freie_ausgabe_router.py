@@ -26,6 +26,7 @@ router = APIRouter(prefix="/api/freie-ausgaben", tags=["Freie Ausgabe"])
 
 MAX_FOTOS = 3
 MAX_BESCHREIBUNG = 500
+MAX_BAUSTELLE = 120
 
 
 def _lade(db: Session, ausgabe_id: int) -> FreieAusgabe:
@@ -45,13 +46,15 @@ def _lade(db: Session, ausgabe_id: int) -> FreieAusgabe:
 @router.post("", response_model=FreieAusgabeOut, status_code=status.HTTP_201_CREATED)
 async def freie_ausgabe_anlegen(
     beschreibung: str = Form(""),
+    baustelle: Optional[str] = Form(None),
     externes_team: Optional[str] = Form(None),
     dateien: list[UploadFile] = File(default=[]),
     current_user: Benutzer = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> FreieAusgabeOut:
     """Legt eine Ausgabe an: 1–3 Fotos (Pflicht), Beschreibung (Pflicht),
-    optional externes Montageteam (find-or-create wie beim Maschinen-Ausleihen)."""
+    optional Baustelle und externes Montageteam (find-or-create wie beim
+    Maschinen-Ausleihen)."""
     text = (beschreibung or "").strip()
     if not text:
         raise HTTPException(
@@ -62,6 +65,12 @@ async def freie_ausgabe_anlegen(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Beschreibung zu lang (max {MAX_BESCHREIBUNG} Zeichen).",
+        )
+    baustelle_text = (baustelle or "").strip() or None
+    if baustelle_text and len(baustelle_text) > MAX_BAUSTELLE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Baustelle zu lang (max {MAX_BAUSTELLE} Zeichen).",
         )
     dateien = [d for d in dateien if d.filename]
     if not dateien:
@@ -93,6 +102,7 @@ async def freie_ausgabe_anlegen(
         benutzer_id=current_user.id,
         externes_team_id=team.id if team else None,
         beschreibung=text,
+        baustelle=baustelle_text,
         ausgabe_zeitpunkt=datetime.now(timezone.utc),
     )
     db.add(ausgabe)

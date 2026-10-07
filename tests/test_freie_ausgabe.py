@@ -41,10 +41,13 @@ def anna(db):
     return make_user(db, "anna")
 
 
-def _anlegen(client, user, beschreibung="2 Schraubzwingen 300 mm", team=None, fotos=1):
+def _anlegen(client, user, beschreibung="2 Schraubzwingen 300 mm", team=None, fotos=1,
+             baustelle=None):
     data = {"beschreibung": beschreibung}
     if team is not None:
         data["externes_team"] = team
+    if baustelle is not None:
+        data["baustelle"] = baustelle
     return client.post(
         "/api/freie-ausgaben",
         data=data,
@@ -118,6 +121,34 @@ def test_anlegen_ohne_login_ist_401(client):
     r = client.post("/api/freie-ausgaben", data={"beschreibung": "x"},
                     files=_dateien(_jpeg()))
     assert r.status_code == 401
+
+
+def test_baustelle_optional(client, max_):
+    ohne = _anlegen(client, max_).json()
+    assert ohne["baustelle"] is None
+    leer = _anlegen(client, max_, baustelle="   ").json()
+    assert leer["baustelle"] is None
+    mit = _anlegen(client, max_, baustelle="  Grundschule Ditzingen ").json()
+    assert mit["baustelle"] == "Grundschule Ditzingen"
+    for d in (ohne, leer, mit):
+        _aufraeumen(d)
+
+
+def test_baustelle_zu_lang_ist_400(client, max_):
+    r = _anlegen(client, max_, baustelle="x" * 121)
+    assert r.status_code == 400
+    assert "Baustelle" in r.json()["detail"]
+
+
+def test_admin_suche_findet_baustelle(client, max_, admin):
+    a = _anlegen(client, max_, baustelle="Klinikum Böblingen").json()
+    b = _anlegen(client, max_).json()
+    r = client.get("/api/admin/freie-ausgaben?suche=böblingen", headers=auth_header(admin)).json()
+    assert [e["id"] for e in r] == [a["id"]]
+    s = client.get("/api/admin/statistiken", headers=auth_header(admin)).json()
+    assert s["offene_freie_anzahl"] == 2
+    _aufraeumen(a)
+    _aufraeumen(b)
 
 
 # ---------------- Meine ----------------

@@ -261,6 +261,7 @@ class UeberfaelligeAusleiheEintrag(BaseModel):
 class UeberfaelligeFreieEintrag(BaseModel):
     id: int
     beschreibung: str
+    baustelle: Optional[str] = None
     benutzer: BenutzerKurz
     externes_team_name: Optional[str] = None
     ausgabe_zeitpunkt: datetime
@@ -288,6 +289,7 @@ class FreieAusgabeFotoOut(_ORM):
 class FreieAusgabeOut(_ORM):
     id: int
     beschreibung: str
+    baustelle: Optional[str] = None
     benutzer: BenutzerKurz
     externes_team_name: Optional[str] = None
     ausgabe_zeitpunkt: datetime
