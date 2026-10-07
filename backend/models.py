@@ -7,6 +7,7 @@ Tabellen:
 - Maschine     : Inventar aller Handmaschinen
 - Ausleihe     : Historie aller Ausleihvorgänge (aktuell + vergangen)
 - Zubehoer     : Zubehörteile pro Maschine (z.B. Akku, Ladegerät)
+- FreieAusgabe : Ausgabe von Kleinteilen ohne Code (Pflicht-Foto + Text)
 """
 
 from datetime import datetime, timezone
@@ -96,6 +97,11 @@ class Benutzer(Base):
     # ondelete-CASCADE-Regel nicht; create_all zieht sie nicht nach).
     ausleihen = relationship(
         "Ausleihe",
+        back_populates="benutzer",
+        cascade="all, delete-orphan",
+    )
+    freie_ausgaben = relationship(
+        "FreieAusgabe",
         back_populates="benutzer",
         cascade="all, delete-orphan",
     )
@@ -389,9 +395,83 @@ class ExternesTeam(Base):
     name = Column(String(120), nullable=False, unique=True, index=True)
 
     ausleihen = relationship("Ausleihe", back_populates="externes_team")
+    freie_ausgaben = relationship("FreieAusgabe", back_populates="externes_team")
 
     def __repr__(self) -> str:
         return f"<ExternesTeam '{self.name}'>"
+
+
+# --------------------------------------------------------------------
+#  FreieAusgabe - Geräte ohne eigenen Code (Schraubzwingen, Spritzen, ...)
+# --------------------------------------------------------------------
+
+class FreieAusgabe(Base):
+    """Ausgabe eines Kleinteils ohne Maschinen-Code.
+
+    Beleg ist das Pflicht-Foto (siehe FreieAusgabeFoto) plus Textbeschreibung.
+    Rückgabe setzt `rueckgabe_zeitpunkt`; Einträge werden nie gelöscht, damit
+    die Admin-Historie vollständig bleibt.
+    """
+    __tablename__ = "freie_ausgaben"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    benutzer_id = Column(
+        Integer, ForeignKey("benutzer.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    externes_team_id = Column(
+        Integer, ForeignKey("externe_teams.id"), nullable=True, index=True
+    )
+    beschreibung = Column(Text, nullable=False)
+    ausgabe_zeitpunkt = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc),
+        nullable=False, index=True,
+    )
+    rueckgabe_zeitpunkt = Column(DateTime, nullable=True, index=True)
+    rueckgabe_kommentar = Column(Text, nullable=True)
+
+    benutzer = relationship("Benutzer", back_populates="freie_ausgaben")
+    externes_team = relationship("ExternesTeam", back_populates="freie_ausgaben")
+    fotos = relationship(
+        "FreieAusgabeFoto",
+        back_populates="ausgabe",
+        order_by="FreieAusgabeFoto.id",
+        cascade="all, delete-orphan",
+    )
+
+    @property
+    def externes_team_name(self) -> str | None:
+        return self.externes_team.name if self.externes_team else None
+
+    @property
+    def ist_offen(self) -> bool:
+        return self.rueckgabe_zeitpunkt is None
+
+    @property
+    def dauer_tage(self) -> int:
+        start = _naiv(self.ausgabe_zeitpunkt)
+        ende = _naiv(self.rueckgabe_zeitpunkt) or datetime.now(timezone.utc).replace(tzinfo=None)
+        return (ende - start).days
+
+    def __repr__(self) -> str:
+        zustand = "offen" if self.ist_offen else "abgeschlossen"
+        return f"<FreieAusgabe #{self.id} '{self.beschreibung[:30]}' [{zustand}]>"
+
+
+class FreieAusgabeFoto(Base):
+    __tablename__ = "freie_ausgabe_fotos"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    ausgabe_id = Column(
+        Integer, ForeignKey("freie_ausgaben.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    datei_pfad = Column(String(255), nullable=False)
+
+    ausgabe = relationship("FreieAusgabe", back_populates="fotos")
+
+    def __repr__(self) -> str:
+        return f"<FreieAusgabeFoto {self.id} a={self.ausgabe_id}>"
 
 
 # --------------------------------------------------------------------

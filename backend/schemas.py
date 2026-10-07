@@ -258,9 +258,48 @@ class UeberfaelligeAusleiheEintrag(BaseModel):
     dauer_tage: int
 
 
+class UeberfaelligeFreieEintrag(BaseModel):
+    id: int
+    beschreibung: str
+    benutzer: BenutzerKurz
+    externes_team_name: Optional[str] = None
+    ausgabe_zeitpunkt: datetime
+    dauer_tage: int
+
+
 class StatistikenOut(BaseModel):
     top_maschinen: list[TopMaschineEintrag]
     ueberfaellige: list[UeberfaelligeAusleiheEintrag]
+    # Freie Ausgaben (Kleinteile ohne Code)
+    offene_freie_anzahl: int = 0
+    ueberfaellige_freie: list[UeberfaelligeFreieEintrag] = []
+
+
+# ============================================================
+#  Freie Ausgabe (Kleinteile ohne Code)
+# ============================================================
+
+class FreieAusgabeFotoOut(_ORM):
+    id: int
+    datei_pfad: str
+    url: Optional[str] = None  # vom Router befüllt (Datei-Token)
+
+
+class FreieAusgabeOut(_ORM):
+    id: int
+    beschreibung: str
+    benutzer: BenutzerKurz
+    externes_team_name: Optional[str] = None
+    ausgabe_zeitpunkt: datetime
+    rueckgabe_zeitpunkt: Optional[datetime] = None
+    rueckgabe_kommentar: Optional[str] = None
+    dauer_tage: int
+    ist_offen: bool
+    fotos: list[FreieAusgabeFotoOut] = []
+
+
+class FreieAusgabeRueckgabeRequest(BaseModel):
+    kommentar: Optional[str] = Field(default=None, max_length=1000)
 
 
 # ============================================================

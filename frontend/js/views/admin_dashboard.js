@@ -26,6 +26,11 @@ export async function renderAdminDashboard() {
         <div class="text-2xl mb-1">👥</div>
         <div class="font-medium text-txt">Benutzer</div>
       </a>
+      <a href="#/admin/freie-ausgaben" class="bg-surface border border-border rounded-lg p-4 text-center hover:bg-surface-2 col-span-2">
+        <div class="text-2xl mb-1">📦</div>
+        <div class="font-medium text-txt">Freie Ausgaben <span class="text-muted font-normal">(ohne Code)</span></div>
+        <div class="text-sm text-muted">${stats.offene_freie_anzahl || 0} offen</div>
+      </a>
     </div>
 
     <section class="bg-surface border border-border rounded-lg p-4 mb-4">
@@ -45,8 +50,20 @@ export async function renderAdminDashboard() {
 
     <section class="bg-surface border border-border rounded-lg p-4 mb-4">
       <h2 class="font-semibold text-txt mb-3">
-        ${stats.ueberfaellige.length ? '⚠️ ' : ''}Überfällig (länger als 7 Tage)
+        ${(stats.ueberfaellige.length || (stats.ueberfaellige_freie || []).length) ? '⚠️ ' : ''}Überfällig (länger als 7 Tage)
       </h2>
+      ${(stats.ueberfaellige_freie || []).length ? `
+        <ul class="space-y-2 mb-2">
+          ${stats.ueberfaellige_freie.map((u) => `
+            <li class="border border-broken/30 bg-broken/10 rounded p-3 text-sm">
+              <a href="#/admin/freie-ausgaben" class="font-medium text-broken hover:underline">
+                📦 ${escapeHtml(u.beschreibung)}
+              </a>
+              <div class="text-txt-2 mt-1">
+                ${escapeHtml(u.benutzer.voller_name)}${u.externes_team_name ? ` für ${escapeHtml(u.externes_team_name)}` : ''} — ${zeitseit(u.ausgabe_zeitpunkt)}
+              </div>
+            </li>`).join('')}
+        </ul>` : ''}
       ${stats.ueberfaellige.length ? `
         <ul class="space-y-2">
           ${stats.ueberfaellige.map((u) => `
@@ -58,6 +75,6 @@ export async function renderAdminDashboard() {
                 ${escapeHtml(u.benutzer.voller_name)} — ${zeitseit(u.ausleih_zeitpunkt)}
               </div>
             </li>`).join('')}
-        </ul>` : '<div class="text-sm text-muted">Keine überfälligen Ausleihen.</div>'}
+        </ul>` : ((stats.ueberfaellige_freie || []).length ? '' : '<div class="text-sm text-muted">Keine überfälligen Ausleihen.</div>')}
     </section>`;
 }

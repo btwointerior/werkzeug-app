@@ -1,14 +1,18 @@
 import { api } from '../api.js';
 import {
-  escapeHtml, leerZustand, spinner, statusBadge,
+  btnClasses, escapeHtml, leerZustand, spinner, statusBadge,
 } from '../ui.js';
 import { filterMaschinen } from '../filter.js';
+import { neueFreieAusgabe } from './freie_ausgabe.js';
 
 export async function renderGeraete() {
   const app = document.getElementById('app');
   app.innerHTML = `
     <main class="max-w-3xl mx-auto pb-24 pt-4 px-4">
-      <h1 class="text-2xl font-bold text-txt mb-4">Geräte</h1>
+      <div class="flex items-center justify-between mb-4 gap-2">
+        <h1 class="text-2xl font-bold text-txt">Geräte</h1>
+        <button id="g-ohne-code" class="${btnClasses('secondary')} text-sm">📦 Ohne Code</button>
+      </div>
       <div class="flex gap-2 mb-4">
         <input id="g-suche" placeholder="Suche..."
                class="flex-1 border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted">
@@ -22,6 +26,10 @@ export async function renderGeraete() {
       </div>
       <div id="g-liste">${spinner()}</div>
     </main>`;
+
+  document.getElementById('g-ohne-code').onclick = async () => {
+    if (await neueFreieAusgabe()) location.hash = '#/meine';
+  };
 
   const suche = document.getElementById('g-suche');
   const stat  = document.getElementById('g-status');

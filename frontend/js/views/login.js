@@ -1,6 +1,6 @@
 import { api, setToken } from '../api.js';
 import { state } from '../app.js';
-import { btnClasses, escapeHtml } from '../ui.js';
+import { btnClasses, escapeHtml, wortmarkeMarkup } from '../ui.js';
 
 export async function renderLogin() {
   state.benutzer = null;
@@ -8,6 +8,7 @@ export async function renderLogin() {
   app.innerHTML = `
     <div class="min-h-screen flex items-center justify-center px-4 bg-bg">
       <div class="bg-surface rounded-xl shadow-md p-6 w-full max-w-sm">
+        <div class="mb-6 pt-2">${wortmarkeMarkup('h-20')}</div>
         <h1 class="text-2xl font-bold text-txt mb-1">Werkzeug-Ausleihe</h1>
         <p class="text-sm text-muted mb-6">Bitte anmelden.</p>
         <form id="login-form" class="space-y-4" novalidate>

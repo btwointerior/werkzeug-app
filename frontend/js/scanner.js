@@ -34,7 +34,7 @@ export function parseScan(text) {
 // Optional: manuell = Funktion, die die manuelle Code-Eingabe öffnet (eigener
 // Button; "Abbrechen" bricht dann NUR ab, ohne Eingabe-Dialog).
 // Auflösung: gefundener Maschinen-Code (string) | null (Abbruch/Kamera nicht möglich).
-export function scanQr({ nfc = null, manuell = null } = {}) {
+export function scanQr({ nfc = null, manuell = null, ohneCode = null } = {}) {
   return new Promise((resolve) => {
     const root = document.getElementById('modal-root');
     let stream = null;
@@ -60,6 +60,7 @@ export function scanQr({ nfc = null, manuell = null } = {}) {
       <div class="p-4 space-y-2">
         ${nfc ? `<button id="qr-nfc" class="${btnClasses('primary')} w-full">NFC-Tag lesen</button>` : ''}
         ${manuell ? `<button id="qr-manuell" class="${btnClasses('secondary')} w-full">Code manuell eingeben</button>` : ''}
+        ${ohneCode ? `<button id="qr-ohne-code" class="${btnClasses('secondary')} w-full">📦 Ohne Code ausgeben</button>` : ''}
         <button id="qr-cancel" class="${btnClasses('ghost')} w-full">Abbrechen</button>
       </div>`;
     root.appendChild(overlay);
@@ -103,6 +104,16 @@ export function scanQr({ nfc = null, manuell = null } = {}) {
         cleanup();
         resolve(null);
         manuell();       // öffnet den Eingabe-Dialog (navigiert selbst)
+      };
+    }
+
+    if (ohneCode) {
+      overlay.querySelector('#qr-ohne-code').onclick = () => {
+        if (done) return;
+        done = true;
+        cleanup();
+        resolve(null);
+        ohneCode();      // startet den Ablauf „Freie Ausgabe" (navigiert selbst)
       };
     }
 

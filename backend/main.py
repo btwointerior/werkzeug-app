@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from backend.auth import create_access_token, decode_access_token, token_restlaufzeit
 from backend.config import settings
 from backend.models import init_db
-from backend.routers import admin_router, auth_router, maschinen_router
+from backend.routers import admin_router, auth_router, maschinen_router, freie_ausgabe_router
 from backend import uploads_router
 
 _FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
@@ -99,6 +99,7 @@ app.include_router(auth_router.router)
 app.include_router(maschinen_router.router)
 app.include_router(admin_router.router)
 app.include_router(uploads_router.router)
+app.include_router(freie_ausgabe_router.router)
 
 # Statische Frontend-Dateien (JS, CSS, Bilder) unter /static/*.
 app.mount("/static", StaticFiles(directory=_FRONTEND_DIR), name="static")

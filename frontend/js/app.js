@@ -16,6 +16,8 @@ import { renderAdminMaschinen } from './views/admin_maschinen.js';
 import { renderAdminMaschineForm } from './views/admin_maschine_form.js';
 import { renderAdminHistorie } from './views/admin_historie.js';
 import { renderAdminBenutzer } from './views/admin_benutzer.js';
+import { renderAdminFreieAusgaben } from './views/admin_freie_ausgaben.js';
+import { neueFreieAusgabe } from './views/freie_ausgabe.js';
 
 export const state = {
   benutzer: null,
@@ -40,6 +42,7 @@ const ROUTEN = [
   { pattern: /^#\/admin\/maschinen\/(\d+)\/edit$/, admin: true, view: (m) => renderAdminMaschineForm(+m[1]) },
   { pattern: /^#\/admin\/maschinen\/(\d+)\/historie$/, admin: true, view: (m) => renderAdminHistorie(+m[1]) },
   { pattern: /^#\/admin\/benutzer$/, admin: true, view: renderAdminBenutzer },
+  { pattern: /^#\/admin\/freie-ausgaben$/, admin: true, view: renderAdminFreieAusgaben },
 ];
 
 async function route() {
@@ -95,9 +98,9 @@ function renderChrome() {
   topbar.classList.remove('hidden');
   topbar.innerHTML = `
     <div class="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        ${logoMarkup('h-7 w-7 text-xs')}
-        <span class="font-semibold text-txt">Werkzeug-Ausleihe</span>
+      <div class="flex items-center gap-2 min-w-0">
+        ${logoMarkup('h-6 flex-shrink-0')}
+        <span class="font-semibold text-txt whitespace-nowrap truncate text-sm sm:text-base">Werkzeug-Ausleihe</span>
       </div>
       <div class="flex items-center gap-3">
         <span class="text-sm text-muted hidden sm:inline">${escapeHtml(state.benutzer.voller_name)}</span>
@@ -145,10 +148,18 @@ async function scanOrAsk() {
   const quelle = () => scanQr({
     nfc: istNfcVerfuegbar() ? nfcLeseCode : null,
     manuell: askCode,     // eigener Button im Overlay öffnet die Eingabe
+    ohneCode: ohneCodeAusgeben,
   });
   const code = await holeWerkzeugCode(quelle);
   if (code) location.hash = `#/m/${encodeURIComponent(code)}`;
   // "Abbrechen" bricht nur ab — keine automatische manuelle Eingabe mehr.
+}
+
+async function ohneCodeAusgeben() {
+  const neu = await neueFreieAusgabe();
+  if (neu) {
+    if (location.hash === '#/meine') await route(); else location.hash = '#/meine';
+  }
 }
 
 async function askCode() {

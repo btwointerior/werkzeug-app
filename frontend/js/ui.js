@@ -37,9 +37,21 @@ export function btnClasses(variant = 'primary') {
   return `${base} ${variants[variant] || variants.primary}`;
 }
 
-// Echtes App-Logo (frontend/assets/icons). Austausch weiterhin NUR hier.
-export function logoMarkup(sizeCls = 'h-8 w-8 text-sm') {
-  return `<img src="/static/assets/icons/icon-transparent-512.png" alt="Logo" ` +
+// Firmenlogo bühler² interior (frontend/assets). Austausch NUR hier —
+// sync-assets.mjs relativiert „/static/assets/" für die iOS-App.
+// logoMarkup(): kompaktes „b²"-Zeichen (Kopfzeile).
+export function logoMarkup(sizeCls = 'h-8') {
+  return `<img src="/static/assets/logo-b2.svg" alt="bühler² interior" ` +
+         `class="inline-block ${sizeCls} w-auto">`;
+}
+// wortmarkeMarkup(): zweizeilige Wortmarke (Anmeldeseite).
+export function wortmarkeMarkup(sizeCls = 'h-20') {
+  return `<img src="/static/assets/logo-buehler2-interior.svg" alt="bühler² interior" ` +
+         `class="block ${sizeCls} w-auto mx-auto">`;
+}
+// App-Icon (Lime-Nabe) — bleibt für Sonderfälle verfügbar.
+export function appIconMarkup(sizeCls = 'h-8 w-8') {
+  return `<img src="/static/assets/icons/icon-transparent-512.png" alt="" ` +
          `class="inline-block ${sizeCls} rounded-lg">`;
 }
 

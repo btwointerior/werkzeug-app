@@ -14,11 +14,13 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 
 from backend import anleitung_suche, ki_analyse, qr
+from backend.bilder import pruefe_bild_oder_400, speichere_verkleinert
 from backend.config import settings
 from backend.dependencies import require_admin
 from backend.models import (
     Ausleihe,
     Benutzer,
+    FreieAusgabe,
     Maschine,
     MaschinenFoto,
     MaschinenStatus,
@@ -33,6 +35,7 @@ from backend.schemas import (
     BenutzerOut,
     BenutzerUpdate,
     FotoAnalyseOut,
+    FreieAusgabeOut,
     MaschineCreate,
     MaschineKurz,
     MaschineOut,
@@ -41,8 +44,9 @@ from backend.schemas import (
     StatistikenOut,
     TopMaschineEintrag,
     UeberfaelligeAusleiheEintrag,
+    UeberfaelligeFreieEintrag,
 )
-from backend.upload_urls import maschine_zu_out
+from backend.upload_urls import freie_ausgabe_zu_out, maschine_zu_out
 
 logger = logging.getLogger("werkzeug_app.admin")
 
@@ -241,39 +245,13 @@ def maschine_historie(
 MAX_FOTOS_JE_UPLOAD = 10
 
 
-def _pruefe_bild_oder_400(datei: UploadFile, inhalt: bytes) -> Image.Image:
-    """Validiert Typ/Größe/Magic-Bytes und gibt das geöffnete Bild zurück."""
-    if datei.content_type not in settings.ERLAUBTE_BILD_TYPEN:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Nur JPG, PNG oder WebP erlaubt.",
-        )
-    if len(inhalt) > settings.MAX_UPLOAD_SIZE:
-        mb = settings.MAX_UPLOAD_SIZE // (1024 * 1024)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Datei zu groß (max {mb} MB).",
-        )
-    try:
-        Image.open(io.BytesIO(inhalt)).verify()
-        return Image.open(io.BytesIO(inhalt))
-    except (UnidentifiedImageError, OSError, ValueError):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Datei ist kein gültiges Bild.",
-        )
-
-
 def _foto_speichern(db: Session, maschine: Maschine, img: Image.Image) -> MaschinenFoto:
     """Verkleinert das Bild, legt Datei + MaschinenFoto-Zeile an (ohne Commit)."""
-    img.thumbnail((1600, 1600))
-    if img.mode != "RGB":
-        img = img.convert("RGB")
     foto = MaschinenFoto(maschine_id=maschine.id, datei_pfad="")
     db.add(foto)
     db.flush()  # vergibt foto.id für den Dateinamen
     foto.datei_pfad = f"maschine_{maschine.id}_foto_{foto.id}.jpg"
-    img.save(settings.UPLOAD_DIR / foto.datei_pfad, "JPEG", quality=85, optimize=True)
+    speichere_verkleinert(img, foto.datei_pfad)
     return foto
 
 
@@ -307,7 +285,7 @@ async def fotos_hochladen(
     bilder = []
     for datei in dateien:
         inhalt = await datei.read()
-        bilder.append(_pruefe_bild_oder_400(datei, inhalt))
+        bilder.append(pruefe_bild_oder_400(datei, inhalt))
 
     hatte_start = any(f.ist_start for f in maschine.fotos)
     neue = [_foto_speichern(db, maschine, img) for img in bilder]
@@ -381,7 +359,7 @@ async def foto_hochladen(
     """Alt-Endpunkt (eine Datei): hängt das Foto an und macht es zum Startbild."""
     maschine = _hole_maschine(db, maschine_id)
     inhalt = await datei.read()
-    img = _pruefe_bild_oder_400(datei, inhalt)
+    img = pruefe_bild_oder_400(datei, inhalt)
     foto = _foto_speichern(db, maschine, img)
     db.refresh(maschine)
     _setze_startbild(maschine, foto)
@@ -761,6 +739,22 @@ def benutzer_loeschen(
                 "werden. Bitte zuerst die Rückgabe der Maschine(n) buchen."
             ),
         )
+    hat_offene_freie = (
+        db.query(FreieAusgabe)
+        .filter(
+            FreieAusgabe.benutzer_id == benutzer.id,
+            FreieAusgabe.rueckgabe_zeitpunkt.is_(None),
+        )
+        .first()
+    )
+    if hat_offene_freie is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Mitarbeiter hat noch eine offene freie Ausgabe (ohne Code) und kann "
+                "nicht gelöscht werden. Bitte zuerst die Rückgabe buchen."
+            ),
+        )
     # Hard-Delete: abgeschlossene Ausleih-Historie des Benutzers mitlöschen
     # (AusleiheZubehoer hängt per Cascade an Ausleihe und wird mitentfernt).
     for ausleihe in (
@@ -816,6 +810,65 @@ def statistiken(db: Session = Depends(get_db)) -> StatistikenOut:
         )
         for a in offene
     ]
-    return StatistikenOut(
-        top_maschinen=top_maschinen, ueberfaellige=ueberfaellige
+    offene_freie = (
+        db.query(FreieAusgabe)
+        .filter(FreieAusgabe.rueckgabe_zeitpunkt.is_(None))
+        .order_by(FreieAusgabe.ausgabe_zeitpunkt.asc())
+        .all()
     )
+    ueberfaellige_freie = [
+        UeberfaelligeFreieEintrag(
+            id=f.id,
+            beschreibung=f.beschreibung,
+            benutzer=BenutzerKurz.model_validate(f.benutzer),
+            externes_team_name=f.externes_team_name,
+            ausgabe_zeitpunkt=f.ausgabe_zeitpunkt,
+            dauer_tage=f.dauer_tage,
+        )
+        for f in offene_freie
+        if f.ausgabe_zeitpunkt < cutoff
+    ]
+    return StatistikenOut(
+        top_maschinen=top_maschinen,
+        ueberfaellige=ueberfaellige,
+        offene_freie_anzahl=len(offene_freie),
+        ueberfaellige_freie=ueberfaellige_freie,
+    )
+
+
+# ============================================================
+#  Freie Ausgaben (Kleinteile ohne Code) — Historie
+# ============================================================
+
+@router.get("/freie-ausgaben", response_model=list[FreieAusgabeOut])
+def freie_ausgaben_liste(
+    offen: Optional[str] = None,
+    suche: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: Benutzer = Depends(require_admin),
+) -> list[FreieAusgabeOut]:
+    """Historie aller freien Ausgaben (neueste zuerst).
+
+    `offen=true` nur offene, `offen=false` nur abgeschlossene, sonst alle.
+    `suche` filtert (case-insensitiv) über Beschreibung, Team und Benutzername.
+    """
+    q = db.query(FreieAusgabe).options(
+        selectinload(FreieAusgabe.fotos),
+        selectinload(FreieAusgabe.benutzer),
+        selectinload(FreieAusgabe.externes_team),
+    )
+    if offen == "true":
+        q = q.filter(FreieAusgabe.rueckgabe_zeitpunkt.is_(None))
+    elif offen == "false":
+        q = q.filter(FreieAusgabe.rueckgabe_zeitpunkt.isnot(None))
+    zeilen = q.order_by(FreieAusgabe.ausgabe_zeitpunkt.desc()).limit(1000).all()
+    if suche and suche.strip():
+        s_ = suche.strip().lower()
+        zeilen = [
+            z for z in zeilen
+            if s_ in z.beschreibung.lower()
+            or s_ in (z.externes_team_name or "").lower()
+            or s_ in z.benutzer.voller_name.lower()
+            or s_ in z.benutzer.benutzername.lower()
+        ]
+    return [freie_ausgabe_zu_out(z, current_user.id) for z in zeilen]
