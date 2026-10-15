@@ -11,6 +11,7 @@ import hashlib
 import hmac
 import os
 import time
+from urllib.parse import unquote
 
 ZEITFENSTER_SEK = 300
 
@@ -44,7 +45,8 @@ def benutzer_aus_headern(headers, sec=None, now=None):
     erwartet = hmac.new(sec.encode("utf-8"), msg, hashlib.sha256).hexdigest()
     if not hmac.compare_digest(erwartet, sig):
         return None
-    return {"kuerzel": kuerzel, "rolle": rolle, "email": email}
+    # Name ist nur Anzeige/Erstanlage (nicht signiert), URL-kodiert wegen Umlauten.
+    return {"kuerzel": kuerzel, "rolle": rolle, "email": email, "name": unquote(headers.get("X-B2-Name") or "")}
 
 
 def signatur(sec, kuerzel, rolle="", email="", ts=None):
