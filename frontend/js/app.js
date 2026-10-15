@@ -1,6 +1,6 @@
 // Bootstrap, App-State, Hash-Router, Top-Bar + Bottom-Nav.
 
-import { api, getToken, clearToken } from './api.js';
+import { api, getToken, setToken, clearToken } from './api.js';
 import { btnClasses, escapeHtml, logoMarkup, modal, toast } from './ui.js';
 import { scanQr } from './scanner.js';
 import { passwortAendernDialog } from './passwort.js';
@@ -19,8 +19,14 @@ import { renderAdminBenutzer } from './views/admin_benutzer.js';
 import { renderAdminFreieAusgaben } from './views/admin_freie_ausgaben.js';
 import { neueFreieAusgabe } from './views/freie_ausgabe.js';
 
+// Portal b² (home.b2interior.de): im Web liegt die Oberfläche hinter dem Portal-Login;
+// Abmelden führt dorthin. Die native App (WERKZEUG_API_BASE gesetzt) meldet sich weiter selbst an.
+const PORTAL_URL = 'https://home.b2interior.de/';
+const istWeb = () => !globalThis.WERKZEUG_API_BASE;
+
 export const state = {
   benutzer: null,
+  ssoHinweis: '',
   get angemeldet() { return !!this.benutzer; },
   get istAdmin()   { return this.benutzer?.rolle === 'admin'; },
 };
@@ -194,11 +200,29 @@ async function logout() {
   try { await api.post('/api/logout'); } catch { /* best effort */ }
   clearToken();
   state.benutzer = null;
+  if (istWeb()) { location.href = PORTAL_URL; return; }
   location.hash = '#/login';
 }
 
+// Portal-SSO (nur Web): Caddy hat das Portal-Cookie geprüft und reicht signierte Header
+// durch; /sso/token tauscht sie gegen ein Werkzeug-Token (Benutzer per Kürzel).
+async function portalAnmeldung() {
+  try {
+    const res = await fetch('/sso/token', { headers: { Accept: 'application/json' } });
+    if (res.ok) {
+      const d = await res.json();
+      setToken(d.access_token);
+      state.benutzer = d.benutzer;
+    } else if (res.status === 401) {
+      const d = await res.json().catch(() => ({}));
+      state.ssoHinweis = d.detail || '';
+    }
+  } catch { /* ohne Portal: normaler Login */ }
+}
+
 async function bootstrap() {
-  if (getToken()) {
+  if (!getToken() && istWeb()) await portalAnmeldung();
+  if (getToken() && !state.benutzer) {
     try {
       state.benutzer = await api.get('/api/me');
     } catch {

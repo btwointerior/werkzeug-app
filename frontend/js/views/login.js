@@ -11,6 +11,7 @@ export async function renderLogin() {
         <div class="mb-6 pt-2">${wortmarkeMarkup('h-20')}</div>
         <h1 class="text-2xl font-bold text-txt mb-1">Werkzeug-Ausleihe</h1>
         <p class="text-sm text-muted mb-6">Bitte anmelden.</p>
+        ${state.ssoHinweis ? `<div class="text-sm text-amber-600 mb-4">${escapeHtml(state.ssoHinweis)}</div>` : ''}
         <form id="login-form" class="space-y-4" novalidate>
           <div>
             <label class="block text-sm font-medium text-txt-2 mb-1" for="benutzername">Benutzername</label>
