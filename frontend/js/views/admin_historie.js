@@ -47,6 +47,6 @@ export async function renderAdminHistorie(maschineId) {
         </div>` : '<div class="text-center py-12 text-muted">Noch keine Ausleihen.</div>'}`;
   } catch (err) {
     app.querySelector('main').innerHTML =
-      `<div class="text-rose-600 p-4">${escapeHtml(err.detail)}</div>`;
+      `<div class="text-broken p-4">${escapeHtml(err.detail)}</div>`;
   }
 }

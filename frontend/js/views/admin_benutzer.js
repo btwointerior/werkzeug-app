@@ -30,7 +30,7 @@ export async function renderAdminBenutzer() {
           <div class="min-w-0">
             <div class="font-medium text-txt truncate">${escapeHtml(b.voller_name)}</div>
             <div class="text-sm text-muted truncate">
-              ${escapeHtml(b.benutzername)} · ${escapeHtml(b.rolle)}${b.aktiv ? '' : ' · <span class="text-rose-600 font-medium">gesperrt</span>'}
+              ${escapeHtml(b.benutzername)} · ${escapeHtml(b.rolle)}${b.aktiv ? '' : ' · <span class="text-broken font-medium">gesperrt</span>'}
             </div>
             <div class="text-sm text-muted mt-1 flex items-center gap-2">
               <span>Passwort:</span>
@@ -62,7 +62,7 @@ export async function renderAdminBenutzer() {
       });
     } catch (err) {
       document.getElementById('liste').innerHTML =
-        `<div class="text-rose-600 p-4">${escapeHtml(err.detail)}</div>`;
+        `<div class="text-broken p-4">${escapeHtml(err.detail)}</div>`;
     }
   }
 

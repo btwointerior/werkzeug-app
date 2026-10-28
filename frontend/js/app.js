@@ -86,7 +86,7 @@ async function route() {
     await eintrag.view(match);
   } catch (err) {
     document.getElementById('app').innerHTML =
-      `<main class="max-w-md mx-auto pt-8 px-4 text-rose-600">${escapeHtml(err.detail || err.message)}</main>`;
+      `<main class="max-w-md mx-auto pt-8 px-4 text-broken">${escapeHtml(err.detail || err.message)}</main>`;
   }
   renderChrome();
 }

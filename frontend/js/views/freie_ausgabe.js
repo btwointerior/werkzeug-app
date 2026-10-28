@@ -41,12 +41,12 @@ export async function neueFreieAusgabe() {
         <input type="file" id="fa-datei" accept="image/*" multiple class="hidden">
       </label>
     </div>
-    <p id="fa-foto-fehler" class="text-sm text-rose-600 mb-3 hidden">Mindestens ein Foto ist Pflicht.</p>
+    <p id="fa-foto-fehler" class="text-sm text-broken mb-3 hidden">Mindestens ein Foto ist Pflicht.</p>
 
     <label class="block text-sm font-medium text-txt-2 mb-1" for="fa-text">Was wird ausgegeben?</label>
     <textarea id="fa-text" rows="2" maxlength="500" placeholder="z.B. 2 Schraubzwingen 300 mm"
               class="w-full border border-border rounded-lg px-3 py-2 text-base bg-surface text-txt placeholder:text-muted mb-1"></textarea>
-    <p id="fa-text-fehler" class="text-sm text-rose-600 mb-3 hidden">Bitte eine Beschreibung eingeben.</p>
+    <p id="fa-text-fehler" class="text-sm text-broken mb-3 hidden">Bitte eine Beschreibung eingeben.</p>
 
     <label class="block text-sm font-medium text-txt-2 mb-1 mt-3" for="fa-baustelle">Baustelle <span class="text-muted font-normal">(optional)</span></label>
     <input id="fa-baustelle" type="text" maxlength="120" placeholder="z.B. Klinikum Böblingen"
@@ -70,7 +70,7 @@ export async function neueFreieAusgabe() {
       <datalist id="fa-team-liste">
         ${bekannteTeams.map((t) => `<option value="${escapeHtml(t)}"></option>`).join('')}
       </datalist>
-      <p id="fa-team-fehler" class="text-sm text-rose-600 mt-1 hidden">Bitte einen Team-Namen eingeben.</p>
+      <p id="fa-team-fehler" class="text-sm text-broken mt-1 hidden">Bitte einen Team-Namen eingeben.</p>
     </div>`;
 
   const fotoWrap = body.querySelector('#fa-fotos');

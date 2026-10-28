@@ -26,7 +26,7 @@ export async function renderAdminMaschineForm(maschineId) {
       if (!m) {
         app.innerHTML = `
           <main class="max-w-3xl mx-auto pt-8 px-4 text-center">
-            <p class="text-rose-600 mb-3">Maschine nicht gefunden.</p>
+            <p class="text-broken mb-3">Maschine nicht gefunden.</p>
             <a href="#/admin/maschinen" class="${btnClasses('secondary')} inline-block">Zurück</a>
           </main>`;
         return;
@@ -34,7 +34,7 @@ export async function renderAdminMaschineForm(maschineId) {
       daten = ausMaschine(m);
     } catch (err) {
       app.innerHTML =
-        `<main class="max-w-3xl mx-auto pt-8 px-4 text-rose-600">${escapeHtml(err.detail)}</main>`;
+        `<main class="max-w-3xl mx-auto pt-8 px-4 text-broken">${escapeHtml(err.detail)}</main>`;
       return;
     }
   }
@@ -148,7 +148,7 @@ export async function renderAdminMaschineForm(maschineId) {
           ? '<span class="absolute bottom-1 left-1 w-6 h-6 rounded-full bg-accent text-accent-ink text-sm font-bold flex items-center justify-center pointer-events-none">✓</span>'
           : ''}
         <button type="button" data-gal-del="${i}" aria-label="Foto löschen"
-                class="absolute top-1 right-1 bg-rose-600 hover:bg-rose-700 text-white rounded w-7 h-7 text-sm leading-none">×</button>
+                class="absolute top-1 right-1 bg-broken hover:brightness-95 text-accent-ink rounded w-7 h-7 text-sm leading-none">×</button>
       </div>`).join('');
 
     return `
@@ -288,7 +288,7 @@ export async function renderAdminMaschineForm(maschineId) {
                 class="bg-accent hover:brightness-95 text-accent-ink min-h-[44px] px-4 rounded-lg text-sm w-full disabled:opacity-50">
           Fotos analysieren
         </button>
-        <p id="ki-hinweis" class="text-sm text-amber-500 mt-2"></p>
+        <p id="ki-hinweis" class="text-sm text-maint mt-2"></p>
       </section>`;
   }
 
@@ -316,7 +316,7 @@ export async function renderAdminMaschineForm(maschineId) {
               : ''}
           </button>
           <button type="button" data-ki-del="${i}" aria-label="Foto entfernen"
-                  class="absolute top-1 right-1 bg-rose-600 hover:bg-rose-700 text-white rounded w-7 h-7 text-sm leading-none">×</button>
+                  class="absolute top-1 right-1 bg-broken hover:brightness-95 text-accent-ink rounded w-7 h-7 text-sm leading-none">×</button>
         </div>`).join('');
       thumbs.querySelectorAll('[data-ki-thumb]').forEach((el) => {
         el.onclick = () => {
@@ -584,7 +584,7 @@ function uploadSektion(prefix, titel, url, pfad, hinweis, accept, istBild = true
     : `<p class="text-sm text-muted mb-3 text-center">Noch nichts hinterlegt.</p>`;
 
   const delBtn = pfad
-    ? `<button id="${prefix}-delete" type="button" class="bg-rose-600 hover:bg-rose-700 text-white min-h-[44px] px-3 rounded-lg text-sm">Entfernen</button>`
+    ? `<button id="${prefix}-delete" type="button" class="bg-broken hover:brightness-95 text-accent-ink min-h-[44px] px-3 rounded-lg text-sm">Entfernen</button>`
     : '';
 
   return `

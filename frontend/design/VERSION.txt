@@ -1,0 +1,1 @@
+Version 1.2.1 (28.10.2026). Herkunft: Konkordanz `server/public/design/` (master 9739d69, Tokens v3 „Editorial Ledger“). **Seit 28.10.2026 ist dieses Repo die Quelle; Konkordanz hält wie alle Apps eine Kopie (sync-to.sh server/public).**
