@@ -229,6 +229,15 @@ async function bootstrap() {
       // ApiError 401 wurde im api.js bereits behandelt (Token gelöscht).
     }
   }
+  // 2026-10-28: Lag ein abgelaufenes Werkzeug-Token im Browser, landete man auf der
+  // Anmeldemaske, obwohl das Portal-Cookie gültig war. Jetzt: nach dem Verwerfen
+  // noch einmal das Portal fragen (einmal in der Portal-Übersicht angemeldet = überall drin).
+  if (!state.benutzer && istWeb()) {
+    await portalAnmeldung();
+    if (getToken() && !state.benutzer) {
+      try { state.benutzer = await api.get('/api/me'); } catch { /* bleibt Login */ }
+    }
+  }
   window.addEventListener('hashchange', route);
   route();
 }
