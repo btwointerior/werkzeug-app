@@ -96,7 +96,12 @@ function renderChrome() {
   const bottomnav = document.getElementById('bottomnav');
 
   if (!state.angemeldet) {
+    // `brand-top`/`app-top`/`tabbar-fest` sind ID-Overrides (siehe index.html) und damit
+    // spezifischer als die Tailwind-Klasse `hidden` — ohne das Entfernen hier würde die
+    // Chrome nach dem ersten eingeloggten Render auch auf der Login-Seite sichtbar bleiben.
+    topbar.classList.remove('brand-top', 'app-top');
     topbar.classList.add('hidden');
+    bottomnav.classList.remove('tabbar-fest');
     bottomnav.classList.add('hidden');
     return;
   }
