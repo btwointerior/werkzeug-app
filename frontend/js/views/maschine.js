@@ -286,11 +286,11 @@ async function ausleihDialog(zubehoerListe, bekannteTeams = []) {
     <p class="text-sm font-medium text-txt-2 mb-2">Für wen leihst du aus?</p>
     <div class="space-y-2 mb-3">
       <label class="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-surface-2">
-        <input type="radio" name="empf" value="mich" checked class="w-5 h-5">
+        <input type="radio" name="empf" value="mich" checked class="w-5 h-5 accent-accent">
         <span class="font-medium">Für mich</span>
       </label>
       <label class="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-surface-2">
-        <input type="radio" name="empf" value="team" class="w-5 h-5">
+        <input type="radio" name="empf" value="team" class="w-5 h-5 accent-accent">
         <span class="font-medium">Für externes Montageteam</span>
       </label>
     </div>
@@ -370,15 +370,15 @@ async function rueckgabeModal(mitgenommen = []) {
     <p class="text-sm text-muted mb-3">Wie ist der Zustand?</p>
     <div class="space-y-2 mb-4">
       <label class="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-surface-2">
-        <input type="radio" name="zust" value="ok" checked class="w-5 h-5">
+        <input type="radio" name="zust" value="ok" checked class="w-5 h-5 accent-accent">
         <span class="font-medium">Alles in Ordnung</span>
       </label>
       <label class="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-surface-2">
-        <input type="radio" name="zust" value="defekt" class="w-5 h-5">
+        <input type="radio" name="zust" value="defekt" class="w-5 h-5 accent-accent">
         <span class="font-medium text-broken">Defekt</span>
       </label>
       <label class="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-surface-2">
-        <input type="radio" name="zust" value="wartung" class="w-5 h-5">
+        <input type="radio" name="zust" value="wartung" class="w-5 h-5 accent-accent">
         <span class="font-medium text-maint">Wartung nötig</span>
       </label>
     </div>

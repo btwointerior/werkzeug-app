@@ -1,7 +1,7 @@
 // Bootstrap, App-State, Hash-Router, Top-Bar + Bottom-Nav.
 
 import { api, getToken, setToken, clearToken } from './api.js';
-import { btnClasses, escapeHtml, logoMarkup, modal, toast } from './ui.js';
+import { btnClasses, escapeHtml, modal, toast } from './ui.js';
 import { scanQr } from './scanner.js';
 import { passwortAendernDialog } from './passwort.js';
 import { holeWerkzeugCode } from './scanner_quelle.js';
@@ -101,20 +101,22 @@ function renderChrome() {
     return;
   }
 
+  // Kopf: Marke (Bildmarke + Werkzeug + Untertitel) im b2-design-.brand-Stil, Link zur
+  // Portal-Übersicht; Haus-Symbol 40 px rechts daneben (Regel b2-design/README „Home-Knopf").
   topbar.classList.remove('hidden');
+  topbar.classList.add('brand-top', 'app-top');
   topbar.innerHTML = `
-    <div class="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
-      <div class="flex items-center gap-2 min-w-0">
-        ${logoMarkup('h-6 flex-shrink-0')}
-        <span class="font-semibold text-txt whitespace-nowrap truncate text-sm sm:text-base">Werkzeug-Ausleihe</span>
-      </div>
-      <div class="flex items-center gap-3">
-        <span class="text-sm text-muted hidden sm:inline">${escapeHtml(state.benutzer.voller_name)}</span>
-        <button id="btn-passwort" aria-label="Passwort ändern" title="Passwort ändern"
-                class="${btnClasses('ghost')} px-3 min-h-[40px] text-sm">🔑</button>
-        <button id="btn-logout" class="${btnClasses('ghost')} px-3 min-h-[40px] text-sm">Abmelden</button>
-      </div>
-    </div>`;
+    <a class="brand" href="${PORTAL_URL}" aria-label="Zur Portal-Übersicht" style="flex:1 1 auto;min-width:0">
+      <span class="brand-mark"><img src="/static/design/logo/bildmarke-hell-200.png" alt="b²"></span>
+      <span><span class="brand-name">Werkzeug</span><span class="brand-sub">bühler² · Ausleihe &amp; Geräte</span></span>
+    </a>
+    <a class="home-btn" href="${PORTAL_URL}" title="Zur Übersicht" aria-label="Zur Übersicht" style="width:40px;height:40px">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/><path d="M10 20v-5h4v5"/></svg>
+    </a>
+    <span class="text-sm text-muted hidden sm:inline" style="margin-left:var(--sp-3)">${escapeHtml(state.benutzer.voller_name)}</span>
+    <button id="btn-passwort" aria-label="Passwort ändern" title="Passwort ändern"
+            class="${btnClasses('ghost')} px-3 min-h-[40px] text-sm" style="margin-left:var(--sp-2)">🔑</button>
+    <button id="btn-logout" class="${btnClasses('ghost')} px-3 min-h-[40px] text-sm">Abmelden</button>`;
   document.getElementById('btn-passwort').onclick = () =>
     passwortAendernDialog().catch((e) => console.error(e));
   document.getElementById('btn-logout').onclick = logout;
@@ -126,16 +128,20 @@ function renderChrome() {
   ];
   if (state.istAdmin) links.push({ hash: '#/admin', label: 'Admin', icon: '⚙️' });
 
+  // Untere Navigation im .tabbar-Stil (hell, 44-px-Tap-Ziele, Safe-Area); Werkzeug hat
+  // kein Seitenleisten-Gegenstück, daher bleibt die Leiste bei jeder Breite sichtbar
+  // (Klasse `tabbar-fest` in index.html hebt die Mobil-Schwelle von `.tabbar` auf).
   bottomnav.classList.remove('hidden');
+  bottomnav.classList.add('tabbar-fest');
   const aktivHash = location.hash.split('?')[0];
   bottomnav.innerHTML = `
-    <div class="max-w-3xl mx-auto h-16 border-t border-border bg-bg grid"
+    <div class="max-w-3xl mx-auto w-full grid"
          style="grid-template-columns: repeat(${links.length}, minmax(0, 1fr));">
       ${links.map((l, i) => {
         const aktiv = l.hash && aktivHash === l.hash;
         return `
         <button data-i="${i}" aria-label="${escapeHtml(l.label)}"${aktiv ? ' aria-current="page"' : ''}
-                class="flex flex-col items-center justify-center text-xs gap-1 ${aktiv ? 'text-accent' : 'text-muted'} hover:bg-surface-2 active:scale-95 transition">
+                class="flex flex-col items-center justify-center text-xs gap-1 min-h-[44px] ${aktiv ? 'text-accent' : 'text-muted'} hover:bg-surface-2 active:scale-95 transition">
           <span class="text-xl leading-none" aria-hidden="true">${l.icon}</span>
           <span>${l.label}</span>
         </button>`;

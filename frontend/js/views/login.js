@@ -8,7 +8,7 @@ export async function renderLogin() {
   app.innerHTML = `
     <div class="min-h-screen flex items-center justify-center px-4 bg-bg">
       <div class="bg-surface rounded-xl shadow-md p-6 w-full max-w-sm">
-        <div class="mb-6 pt-2">${wortmarkeMarkup('h-20')}</div>
+        <div class="login-brand mb-6 pt-2">${wortmarkeMarkup()}</div>
         <h1 class="text-2xl font-bold text-txt mb-1">Werkzeug-Ausleihe</h1>
         <p class="text-sm text-muted mb-6">Bitte anmelden.</p>
         ${state.ssoHinweis ? `<div class="text-sm text-maint mb-4">${escapeHtml(state.ssoHinweis)}</div>` : ''}

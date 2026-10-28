@@ -55,11 +55,11 @@ export async function neueFreieAusgabe() {
     <p class="text-sm text-muted mb-2 mt-3">An wen?</p>
     <div class="space-y-2 mb-2">
       <label class="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-surface-2">
-        <input type="radio" name="fa-empf" value="mich" checked class="w-5 h-5">
+        <input type="radio" name="fa-empf" value="mich" checked class="w-5 h-5 accent-accent">
         <span class="font-medium">Für mich</span>
       </label>
       <label class="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-surface-2">
-        <input type="radio" name="fa-empf" value="team" class="w-5 h-5">
+        <input type="radio" name="fa-empf" value="team" class="w-5 h-5 accent-accent">
         <span class="font-medium">Externes Montageteam</span>
       </label>
     </div>
