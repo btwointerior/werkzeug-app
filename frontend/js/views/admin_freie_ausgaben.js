@@ -37,7 +37,7 @@ export async function renderAdminFreieAusgaben() {
     try {
       eintraege = await api.get(`/api/admin/freie-ausgaben?${params}`);
     } catch (err) {
-      liste.innerHTML = `<div class="p-4 text-rose-600">${escapeHtml(err.detail || 'Fehler beim Laden.')}</div>`;
+      liste.innerHTML = `<div class="p-4 text-broken">${escapeHtml(err.detail || 'Fehler beim Laden.')}</div>`;
       return;
     }
     if (!eintraege.length) {

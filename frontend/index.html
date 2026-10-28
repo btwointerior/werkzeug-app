@@ -3,38 +3,50 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#0b0f1a">
+  <!-- Task D4: Hausstil b2-design ("Editorial Ledger"); theme-color = Fläche (--c-surface). -->
+  <meta name="theme-color" content="#fdfbf6">
   <title>Werkzeug-Ausleihe</title>
+  <link rel="stylesheet" href="/static/design/tokens.css">
+  <link rel="stylesheet" href="/static/design/base.css">
+  <link rel="stylesheet" href="/static/design/components.css">
   <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/icons/icon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/static/assets/icons/icon-16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/icons/icon-180.png">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
+    // Hausfarben aus b2-design/tokens.css als CSS-Variablen gemappt — so übernehmen
+    // alle bestehenden Tailwind-Klassen (bg-surface, text-txt, bg-accent, …) automatisch
+    // den Hausstil, ohne dass jede Klasse in den Views geändert werden muss.
     tailwind.config = {
       theme: {
         extend: {
           colors: {
-            bg: '#0b0f1a',
-            surface: '#151b2b',
-            'surface-2': '#28344f',
-            border: '#28344f',
-            accent: '#d4f000',
-            'accent-ink': '#0b0f1a',
-            txt: '#ffffff',
-            'txt-2': '#cbd5e1',
-            muted: '#94a3b8',
-            'muted-2': '#64748b',
-            ok: '#34d399',
-            lent: '#60a5fa',
-            broken: '#f87171',
-            maint: '#fbbf24',
+            bg: 'var(--c-bg)',
+            surface: 'var(--c-surface)',
+            'surface-2': 'var(--c-surface-2)',
+            border: 'var(--c-border)',
+            accent: 'var(--c-accent)',
+            'accent-ink': 'var(--c-on-accent)',
+            txt: 'var(--c-text)',
+            'txt-2': 'var(--c-text-muted)',
+            muted: 'var(--c-text-faint)',
+            'muted-2': 'var(--c-text-faint)',
+            ok: 'var(--c-ok-ink)',
+            lent: 'var(--c-info-ink)',
+            broken: 'var(--c-err-ink)',
+            maint: 'var(--c-warn-ink)',
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+            display: ['Fraunces', 'Iowan Old Style', 'Palatino Linotype', 'Georgia', 'serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'SF Mono', 'Menlo', 'monospace'],
           },
         },
       },
     };
   </script>
   <style>
-    html, body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; }
+    html, body { font-family: var(--font-ui); }
     /* Kein Pinch-/Doppeltipp-Zoom: versehentliches Zoomen ließ die ganze App
        horizontal "schwimmen" (Layout wirkt instabil). App-UI ist fix skaliert. */
     html { touch-action: pan-x pan-y; }
@@ -42,13 +54,19 @@
     /* iOS-Safe-Area (native App/PWA): Kopfzeile nicht unter der Statusleiste,
        Bottom-Nav nicht unter dem Home-Balken. Im Browser ist env() = 0. */
     #topbar { padding-top: env(safe-area-inset-top); }
-    #bottomnav { padding-bottom: env(safe-area-inset-bottom); background: #0b0f1a; }
+    #bottomnav { padding-bottom: env(safe-area-inset-bottom); background: var(--c-surface); }
     /* Fixierte Aktionsleisten (AUSLEIHEN etc.) sitzen direkt über der
        Bottom-Nav — die ist um die Safe-Area höher als ihre 4rem (h-16). */
     .fixed.bottom-16 { bottom: calc(4rem + env(safe-area-inset-bottom)); }
     /* Seiten mit fixierter Aktionsleiste: genug Platz am Seitenende, damit der
        letzte Inhalt (z.B. NFC-Button) nicht hinter der Leiste verschwindet. */
     .pb-aktionsleiste { padding-bottom: calc(11rem + env(safe-area-inset-bottom)); }
+    /* Werkzeug ist eine reine Mobil-Oberfläche (kein Seitenleisten-Gegenstück wie bei
+       BAU.OS/Portal) — Kopf- und Fußleiste bleiben deshalb bei jeder Breite im
+       .app-top/.tabbar-Look sichtbar, statt nur unterhalb der b2-design-Mobil-Schwelle. */
+    #topbar.brand-top { display: flex; align-items: center; gap: var(--sp-3); position: sticky; top: 0; z-index: 30; height: calc(52px + env(safe-area-inset-top)); padding: env(safe-area-inset-top) var(--sp-4) 0 var(--sp-4); background: var(--c-surface); border-bottom: 1px solid var(--c-border); }
+    #topbar.brand-top .brand { padding: 0; gap: 8px; }
+    #bottomnav.tabbar-fest { display: grid; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; height: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); background: var(--c-surface); border-top: 1px solid var(--c-border); }
   </style>
 </head>
 <body class="bg-bg text-txt-2 min-h-screen">

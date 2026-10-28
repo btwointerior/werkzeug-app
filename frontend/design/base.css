@@ -1,0 +1,55 @@
+/* Konkordanz — Reset + Grundlagen. Setzt tokens.css voraus. */
+*, *::before, *::after { box-sizing: border-box; }
+html, body, h1, h2, h3, h4, p, ul, ol, figure, fieldset { margin: 0; }
+ul, ol { padding: 0; list-style: none; }
+fieldset { padding: 0; border: 0; min-width: 0; }
+img, svg { max-width: 100%; height: auto; }
+canvas { max-width: 100%; }
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  font-family: var(--font-ui);
+  font-size: var(--fs-md);
+  line-height: var(--lh);
+  color: var(--c-text);
+  background: var(--c-bg);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+/* Überschriften: Seitentitel und Summen tragen die Serifen-Stimme. */
+h1, h2, .kpi-value, .amount-value { font-variant-numeric: lining-nums tabular-nums; }
+h1 { font-family: var(--font-display); font-size: var(--fs-2xl); font-weight: var(--fw-medium); line-height: 1.15; letter-spacing: -.01em; font-variation-settings: 'opsz' 72; }
+h2 { font-family: var(--font-display); font-size: var(--fs-xl); font-weight: var(--fw-medium); line-height: 1.2; font-variation-settings: 'opsz' 36; }
+h3 { font-size: var(--fs-lg); font-weight: var(--fw-semibold); }
+h4 { font-size: var(--fs-md); font-weight: var(--fw-semibold); }
+
+a { color: var(--c-accent-ink); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--c-accent-ink) 35%, transparent); text-underline-offset: 2px; }
+a:hover { text-decoration-color: currentColor; }
+
+strong, b { font-weight: var(--fw-semibold); }
+code { font-family: var(--font-mono); font-size: .92em; }
+em { font-style: italic; }
+p + p { margin-top: var(--sp-2); }
+
+/* Zahlen: tabellarische Ziffern überall; .mono nur für IBAN/Codes */
+.num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* Sichtbarer Fokusring (Bernstein) für Tastatur-Bedienung */
+:focus-visible { outline: 2px solid var(--c-focus); outline-offset: 2px; }
+
+/* Eyebrow / Kleinlabel */
+.label { font-size: var(--fs-xs); letter-spacing: .06em; text-transform: uppercase; color: var(--c-text-faint); font-weight: var(--fw-semibold); }
+.muted { color: var(--c-text-muted); }
+.small { font-size: var(--fs-sm); }
+
+/* Nur für Screenreader */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+/* Bewegung nur, wenn erwünscht */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}

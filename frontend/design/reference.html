@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Konkordanz — Design-System</title>
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="base.css">
+  <link rel="stylesheet" href="components.css">
+  <style> .wrap { max-width: 1100px; margin: 0 auto; padding: var(--sp-6); } .sw { display:inline-block; width:88px; height:48px; border-radius:var(--r); border:1px solid var(--c-border); vertical-align:top; margin:2px; } .sw span{display:block;font-size:10px;padding:2px 4px} section{margin-bottom:var(--sp-8)} </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Konkordanz — Design-System</h1>
+    <p class="label">Calm Slate / Teal · nur Hell · Inter + JetBrains Mono</p>
+
+    <section>
+      <h2>Farbpalette</h2>
+      <div>
+        <div class="sw" style="background:var(--c-bg)"><span>--c-bg</span></div>
+        <div class="sw" style="background:var(--c-surface)"><span>--c-surface</span></div>
+        <div class="sw" style="background:var(--c-accent);color:#fff"><span>--c-accent</span></div>
+        <div class="sw" style="background:var(--c-ok-bg)"><span>ok</span></div>
+        <div class="sw" style="background:var(--c-warn-bg)"><span>warn</span></div>
+        <div class="sw" style="background:var(--c-err-bg)"><span>err</span></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Typografie</h2>
+      <p style="font-size:var(--fs-2xl);font-weight:var(--fw-bold)">22 · Überschrift</p>
+      <p style="font-size:var(--fs-lg)">15 · Abschnitt</p>
+      <p>13 · Fließtext</p>
+      <p class="mono">1.482,74 € · Monospace-Zahlen</p>
+    </section>
+
+    <section>
+      <h2>Komponenten</h2>
+      <p><span class="pill pill--ok">OK</span> <span class="pill pill--warn">Prüfen</span> <span class="pill pill--err">Fehler</span></p>
+      <p><button class="btn">Primär</button> <button class="btn btn--secondary">Sekundär</button> <button class="btn btn--ghost">Ghost</button> <button class="btn btn--sm">Klein</button></p>
+      <p><span class="badge">KI-Extraktion</span> <span class="badge">Strukturiert empfangen</span></p>
+      <div class="finding finding--red"><div class="finding-title">Netto + USt ≠ Brutto</div><div class="finding-desc">Δ € 11,00 — bitte prüfen.</div></div>
+      <div class="finding finding--yellow"><div class="finding-title">Skonto-Frist in 2 Tagen</div><div class="finding-desc">Ersparnis € 16,88.</div></div>
+      <div class="finding finding--green"><div class="finding-title">Preise mit AB konsistent</div><div class="finding-desc">5 Positionen geprüft.</div></div>
+      <div class="field" style="max-width:320px;margin-top:var(--sp-4)"><label class="field-label">E-Mail</label><input class="input" value="fb@b2interior.de"></div>
+      <div class="banner" style="margin-top:var(--sp-3)">3 Rechnungen zur Zahlung freigegeben · Summe € 4.577,90</div>
+    </section>
+
+    <section>
+      <h2>Beispiel-Screen: Belegliste</h2>
+      <div class="app" style="border:1px solid var(--c-border);border-radius:var(--r-lg);overflow:hidden;min-height:320px">
+        <div class="app-side">
+          <div class="brand"><span class="brand-mark">b²</span> Konkordanz</div>
+          <nav class="nav">
+            <span class="nav-item is-active">Belege</span>
+            <span class="nav-item">Projekte</span>
+            <span class="nav-item">SEPA-Lauf</span>
+            <span class="nav-item">DATEV</span>
+            <span class="nav-item">Einstellungen</span>
+          </nav>
+        </div>
+        <div class="app-main">
+          <div class="toolbar"><span class="toolbar-title">Belege</span><button class="btn">SEPA exportieren</button></div>
+          <div style="padding:0 var(--sp-4) var(--sp-4)">
+            <table class="table">
+              <thead><tr><th>Lieferant</th><th>Beleg-Nr</th><th class="num">Betrag</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr class="is-selected"><td>Häfele SE &amp; Co</td><td>RE 844-0231</td><td class="num">844,10</td><td><span class="pill pill--warn">Prüfen</span></td></tr>
+                <tr><td>ZEG Stuttgart</td><td>VA-1184774</td><td class="num">1.482,74</td><td><span class="pill pill--ok">OK</span></td></tr>
+                <tr><td>BuKaRa GmbH</td><td>339373</td><td class="num">251,06</td><td><span class="pill pill--err">Fehler</span></td></tr>
+                <tr><td>Carl Götz</td><td>2254340010</td><td class="num">3.190,00</td><td><span class="pill pill--ok">OK</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Beispiel-Screen: Beleg-Detail</h2>
+      <div class="app" style="border:1px solid var(--c-border);border-radius:var(--r-lg);overflow:hidden;max-width:380px">
+        <div class="app-detail" style="width:100%">
+          <div class="detail-head">
+            <div class="detail-supplier">Häfele SE &amp; Co</div>
+            <div class="detail-no">RE 844-0231</div>
+            <span class="status status--warn">Prüfen · 2 Hinweise</span>
+          </div>
+          <div class="finding finding--yellow"><div class="finding-title">Mengen-Abweichung Pos 3</div><div class="finding-desc">RE 12 Stk vs. LS 10 Stk geliefert.</div></div>
+          <div class="finding finding--yellow"><div class="finding-title">Skonto-Frist in 2 Tagen</div><div class="finding-desc">Ersparnis € 16,88 bei Zahlung bis 08.06.</div></div>
+          <div class="finding finding--green"><div class="finding-title">Preise mit AB konsistent</div><div class="finding-desc">5 Positionen geprüft, alle in Toleranz.</div></div>
+          <button class="btn" style="width:100%;margin-top:var(--sp-3);justify-content:center">Rechnung freigeben</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

@@ -44,14 +44,16 @@ export function logoMarkup(sizeCls = 'h-8') {
   return `<img src="/static/assets/logo-b2.svg" alt="bühler² interior" ` +
          `class="inline-block ${sizeCls} w-auto">`;
 }
-// wortmarkeMarkup(): zweizeilige Wortmarke (Anmeldeseite).
-export function wortmarkeMarkup(sizeCls = 'h-20') {
-  return `<img src="/static/assets/logo-buehler2-interior.svg" alt="bühler² interior" ` +
-         `class="block ${sizeCls} w-auto mx-auto">`;
+// wortmarkeMarkup(): Hausstil-Wortmarke (Anmeldeseite), b2-design-Vorgabe
+// (Login-Karte: wortmarke-tinte-800.png über dem Titel, Klasse .wortmarke
+// skaliert über components.css; `zusatzCls` nur für Abstände am Container).
+export function wortmarkeMarkup(zusatzCls = '') {
+  return `<img class="wortmarke ${zusatzCls}" src="/static/design/logo/wortmarke-tinte-800.png" alt="bühler² interior">`;
 }
-// App-Icon (Lime-Nabe) — bleibt für Sonderfälle verfügbar.
+// App-Icon (b2-design, Sandgrund + Bildmarke Tinte) — bleibt für Sonderfälle verfügbar.
+// Das bisherige Lime-Icon entfällt (User-Entscheidung 28.10.2026).
 export function appIconMarkup(sizeCls = 'h-8 w-8') {
-  return `<img src="/static/assets/icons/icon-transparent-512.png" alt="" ` +
+  return `<img src="/static/assets/icons/icon-512.png" alt="" ` +
          `class="inline-block ${sizeCls} rounded-lg">`;
 }
 

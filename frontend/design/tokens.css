@@ -1,0 +1,114 @@
+/* Konkordanz Design-Tokens v3 — „Editorial Ledger".
+   Ruhiges Buchhaltungs-Werkzeug: warmes Papier, Tinten-Blau, EIN Akzent Bernstein
+   (Geld-relevante Zustände), Ampel nur für den Prüfstatus. Alle Farben nur hier. */
+
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/inter-400.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: swap; src: url('fonts/inter-500.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: swap; src: url('fonts/inter-600.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 700; font-display: swap; src: url('fonts/inter-700.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 800; font-display: swap; src: url('fonts/inter-800.woff2') format('woff2'); }
+@font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/jetbrains-mono-400.woff2') format('woff2'); }
+/* Display-Schrift mit Serifen-Charakter: Fraunces (variable: Gewicht 400–700, optische Größe 9–144). */
+@font-face { font-family: 'Fraunces'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('fonts/fraunces-var.woff2') format('woff2'); }
+
+:root {
+  color-scheme: light dark;
+
+  /* Fläche & Linien — Papier */
+  --c-bg:         #f3eee4;   /* Schreibtisch */
+  --c-surface:    #fdfbf6;   /* Blatt */
+  --c-surface-2:  #f5f0e6;   /* Tabellenkopf, Zebra */
+  --c-border:     #ddd5c5;   /* Linienraster */
+  --c-rule:       #15243b;   /* Buchhalter-Strich (Tinte) */
+
+  /* Tinte */
+  --c-text:       #15243b;
+  --c-text-muted: #51607a;
+  --c-text-faint: #6b7588;
+
+  /* Primär = Tinten-Blau */
+  --c-accent:     #1b3a6b;
+  --c-accent-ink: #15305a;
+  --c-accent-bg:  #e6ebf4;
+  --c-on-accent:  #fdfbf6;
+
+  /* EIN Akzent: Bernstein — nur für Geld-relevante Zustände (Freigabe, Skonto, SEPA) */
+  --c-amber:      #9a5b06;
+  --c-amber-bg:   #f9ecd2;
+  --c-amber-line: #d9941c;
+
+  /* Ampel — nur Prüfstatus */
+  --c-ok-ink:   #1f6b3a; --c-ok-bg:   #e1f0e4;
+  --c-warn-ink: #7a5300; --c-warn-bg: #f7ecc9;
+  --c-err-ink:  #a3281e; --c-err-bg:  #f8e2de;
+  --c-info-ink: #1b3a6b; --c-info-bg: #e6ebf4;
+
+  --c-find-red:    #b3261e;
+  --c-find-yellow: #d9a21b;
+  --c-find-green:  #2a8a4a;
+
+  --c-focus: #d9941c;
+
+  /* Typografie */
+  --font-ui:      'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Fraunces', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --fs-xs: 11.5px; --fs-sm: 13px; --fs-md: 14px; --fs-lg: 16px; --fs-xl: 19px; --fs-2xl: 26px; --fs-3xl: 34px; --fs-4xl: 44px;
+  --fw-normal: 400; --fw-medium: 500; --fw-semibold: 600; --fw-bold: 700; --fw-black: 800;
+  --lh: 1.5;
+
+  /* Form, Abstand */
+  --r-sm: 3px; --r: 4px; --r-lg: 6px; --r-pill: 999px;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px; --sp-8: 32px; --sp-10: 40px;
+  --shadow-sm: 0 1px 0 rgba(21,36,59,.06);
+  --shadow:    0 1px 2px rgba(21,36,59,.08);
+  --shadow-lg: 0 8px 24px rgba(21,36,59,.14);
+  --side-w: 236px;
+  --detail-w: 340px;
+  --tabbar-h: 58px;
+  --touch: 44px;
+
+  /* Sicherheitsabstände (iOS Notch / Home-Indikator) */
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+}
+
+/* Dunkel: Tinte wird Fläche, Papier wird Schrift. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --c-bg:         #0f1623;
+    --c-surface:    #172030;
+    --c-surface-2:  #1e2939;
+    --c-border:     #2f3c52;
+    --c-rule:       #ece5d6;
+
+    --c-text:       #ece5d6;
+    --c-text-muted: #b4bccb;
+    --c-text-faint: #98a2b4;
+
+    --c-accent:     #c9d7ef;
+    --c-accent-ink: #dfe8f7;
+    --c-accent-bg:  #243249;
+    --c-on-accent:  #0f1623;
+
+    --c-amber:      #f0b454;
+    --c-amber-bg:   #3a2a0f;
+    --c-amber-line: #e0a23a;
+
+    --c-ok-ink:   #8fd3a4; --c-ok-bg:   #173122;
+    --c-warn-ink: #f1cd6a; --c-warn-bg: #3b2f0e;
+    --c-err-ink:  #f3a79c; --c-err-bg:  #43201b;
+    --c-info-ink: #c9d7ef; --c-info-bg: #243249;
+
+    --c-find-red:    #e8786d;
+    --c-find-yellow: #e9bb4a;
+    --c-find-green:  #64c184;
+
+    --c-focus: #f0b454;
+    --shadow-sm: 0 1px 0 rgba(0,0,0,.3);
+    --shadow:    0 1px 2px rgba(0,0,0,.4);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,.5);
+  }
+}

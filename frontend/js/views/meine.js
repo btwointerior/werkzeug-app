@@ -84,6 +84,6 @@ export async function renderMeine() {
       </a>`).join('');
   } catch (err) {
     liste.innerHTML =
-      `<div class="p-4 text-rose-600">${escapeHtml(err.detail || 'Fehler beim Laden.')}</div>`;
+      `<div class="p-4 text-broken">${escapeHtml(err.detail || 'Fehler beim Laden.')}</div>`;
   }
 }

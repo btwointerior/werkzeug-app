@@ -34,7 +34,7 @@ export async function renderMaschine(code) {
         </main>`;
     } else {
       app.innerHTML =
-        `<main class="max-w-3xl mx-auto pt-8 px-4 text-rose-600">${escapeHtml(err.detail || 'Fehler')}</main>`;
+        `<main class="max-w-3xl mx-auto pt-8 px-4 text-broken">${escapeHtml(err.detail || 'Fehler')}</main>`;
     }
     return;
   }
@@ -286,11 +286,11 @@ async function ausleihDialog(zubehoerListe, bekannteTeams = []) {
     <p class="text-sm font-medium text-txt-2 mb-2">Für wen leihst du aus?</p>
     <div class="space-y-2 mb-3">
       <label class="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-surface-2">
-        <input type="radio" name="empf" value="mich" checked class="w-5 h-5">
+        <input type="radio" name="empf" value="mich" checked class="w-5 h-5 accent-accent">
         <span class="font-medium">Für mich</span>
       </label>
       <label class="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-surface-2">
-        <input type="radio" name="empf" value="team" class="w-5 h-5">
+        <input type="radio" name="empf" value="team" class="w-5 h-5 accent-accent">
         <span class="font-medium">Für externes Montageteam</span>
       </label>
     </div>
@@ -302,7 +302,7 @@ async function ausleihDialog(zubehoerListe, bekannteTeams = []) {
       <datalist id="team-liste">
         ${bekannteTeams.map((t) => `<option value="${escapeHtml(t)}"></option>`).join('')}
       </datalist>
-      <p id="team-fehler" class="text-sm text-rose-600 mt-1 hidden">
+      <p id="team-fehler" class="text-sm text-broken mt-1 hidden">
         Bitte einen Team-Namen eingeben.
       </p>
     </div>
@@ -370,15 +370,15 @@ async function rueckgabeModal(mitgenommen = []) {
     <p class="text-sm text-muted mb-3">Wie ist der Zustand?</p>
     <div class="space-y-2 mb-4">
       <label class="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-surface-2">
-        <input type="radio" name="zust" value="ok" checked class="w-5 h-5">
+        <input type="radio" name="zust" value="ok" checked class="w-5 h-5 accent-accent">
         <span class="font-medium">Alles in Ordnung</span>
       </label>
       <label class="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-surface-2">
-        <input type="radio" name="zust" value="defekt" class="w-5 h-5">
+        <input type="radio" name="zust" value="defekt" class="w-5 h-5 accent-accent">
         <span class="font-medium text-broken">Defekt</span>
       </label>
       <label class="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-surface-2">
-        <input type="radio" name="zust" value="wartung" class="w-5 h-5">
+        <input type="radio" name="zust" value="wartung" class="w-5 h-5 accent-accent">
         <span class="font-medium text-maint">Wartung nötig</span>
       </label>
     </div>
@@ -394,7 +394,7 @@ async function rueckgabeModal(mitgenommen = []) {
         </div>
       </div>` : ''}
     <label class="block text-sm font-medium text-txt-2 mb-1" for="r-komm">Kommentar (optional)</label>
-    <p id="r-komm-pflicht" class="text-sm text-rose-600 mb-2 hidden">
+    <p id="r-komm-pflicht" class="text-sm text-broken mb-2 hidden">
       Es fehlt Zubehör — bitte im Kommentar angeben, was los ist.
     </p>
     <textarea id="r-komm" rows="3"
