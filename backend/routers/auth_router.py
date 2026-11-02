@@ -74,9 +74,7 @@ def passwort_aendern(
     """Ändert das eigene Passwort (jeder eingeloggte Benutzer).
 
     Das aktuelle Passwort ist Pflicht (Schutz bei offen liegendem Gerät) und
-    läuft über dieselbe Brute-Force-Drossel wie der Login. Nach der Änderung
-    wird der Klartext gelöscht — der Admin sieht das Passwort nicht mehr,
-    kann aber weiterhin ein neues setzen (dann wieder mit Klartext-Anzeige).
+    läuft über dieselbe Brute-Force-Drossel wie der Login.
     """
     ip = request.client.host if request.client else "unbekannt"
     drossel_key = f"pwae:{ip}:{current_user.benutzername}"
@@ -90,7 +88,7 @@ def passwort_aendern(
         )
 
     rate_limit.reset(drossel_key)
-    current_user.setze_passwort(daten.neues_passwort, merke_klartext=False)
+    current_user.setze_passwort(daten.neues_passwort)
     db.commit()
     return PasswortAendernResponse(message="Passwort erfolgreich geändert.")
 

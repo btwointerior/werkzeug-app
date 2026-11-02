@@ -10,6 +10,8 @@ Tabellen:
 - FreieAusgabe : Ausgabe von Kleinteilen ohne Code (Pflicht-Foto + Text)
 """
 
+import secrets
+import string
 from datetime import datetime, timezone
 from enum import Enum
 from sqlalchemy import (
@@ -62,6 +64,20 @@ class MaschinenStatus(str, Enum):
     WARTUNG = "wartung"           # in Wartung, gesperrt
 
 
+#: Zeichenvorrat für Zufallspasswörter: Buchstaben + Ziffern ohne l/I/O/0
+#: (beim Abtippen leicht zu verwechseln).
+_PASSWORT_ALPHABET = "".join(
+    c for c in string.ascii_letters + string.digits if c not in "lIO0"
+)
+
+
+def generiere_zufallspasswort(laenge: int = 12) -> str:
+    """Erzeugt ein zufälliges, gut abtippbares Passwort (Admin-Reset).
+
+    Nutzt `secrets.choice` (kryptographisch sicherer Zufall), nicht `random`."""
+    return "".join(secrets.choice(_PASSWORT_ALPHABET) for _ in range(laenge))
+
+
 class RueckgabeZustand(str, Enum):
     """Zustand bei der Rückgabe einer Maschine."""
     OK = "ok"                     # alles in Ordnung
@@ -81,11 +97,9 @@ class Benutzer(Base):
     vorname = Column(String(50), nullable=False)
     nachname = Column(String(50), nullable=False)
     passwort_hash = Column(String(255), nullable=False)
-    # ACHTUNG: Klartext-Passwort auf ausdrücklichen Wunsch des Betreibers, damit Admins es
-    # ansehen können. Bewusst gegen die Sicherheitsempfehlung: bei einem DB-/Backup-Leak
-    # liegen alle so gespeicherten Passwörter offen. Nur ab Einführung neu gesetzte Passwörter
-    # sind befüllt (Alt-Hashes sind nicht rückrechenbar).
-    passwort_klartext = Column(String(255), nullable=True)
+    # Kein Klartext-Passwort mehr im Modell (Pentest-Befund #1): die Spalte
+    # `passwort_klartext` existiert auf der Prod-DB physisch noch, wird von
+    # SQLAlchemy hier aber nicht mehr gemappt und bleibt leer/ungenutzt.
     rolle = Column(SQLEnum(Rolle), default=Rolle.MITARBEITER, nullable=False)
     email = Column(String(120), nullable=True)  # für Erinnerungs-Mails
     aktiv = Column(Boolean, default=True, nullable=False)
@@ -110,15 +124,10 @@ class Benutzer(Base):
     def voller_name(self) -> str:
         return f"{self.vorname} {self.nachname}"
 
-    def setze_passwort(self, klartext: str, merke_klartext: bool = True) -> None:
-        """Passwort als Hash speichern (für die Anmeldung maßgeblich) UND zusätzlich im
-        Klartext (siehe passwort_klartext) für die Admin-Anzeige.
-
-        Bei `merke_klartext=False` (Selbst-Änderung durch den Benutzer) wird der
-        Klartext gelöscht — der Admin sieht das Passwort dann nicht mehr, kann es
-        aber weiterhin zurücksetzen."""
+    def setze_passwort(self, klartext: str) -> None:
+        """Passwort als Hash speichern (für die Anmeldung maßgeblich). Der Klartext
+        wird nirgends gespeichert (Pentest-Befund #1)."""
         self.passwort_hash = pwd_context.hash(klartext)
-        self.passwort_klartext = klartext if merke_klartext else None
 
     def pruefe_passwort(self, klartext: str) -> bool:
         """Eingegebenes Passwort gegen Hash prüfen."""

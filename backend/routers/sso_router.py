@@ -30,7 +30,7 @@ def sso_token(request: Request, db: Session = Depends(get_db)) -> TokenResponse:
         # Login nur über das Portal; Admin kann in der Benutzerverwaltung ein Passwort setzen).
         vor, _, nach = (p.get("name") or p["kuerzel"]).strip().rpartition(" ")
         benutzer = Benutzer(benutzername=p["kuerzel"], vorname=vor or p["kuerzel"], nachname=nach or "-", rolle=rolle, aktiv=True)
-        benutzer.setze_passwort(secrets.token_urlsafe(24), merke_klartext=False)
+        benutzer.setze_passwort(secrets.token_urlsafe(24))
         db.add(benutzer)
         db.commit()
         db.refresh(benutzer)
