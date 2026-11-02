@@ -43,7 +43,8 @@ def test_sso_legt_benutzer_an_und_gleicht_rolle_ab(client, db, monkeypatch):
     r = client.get("/sso/token", headers=_hdr("neu42", rolle="mitarbeiter", name="Max%20M%C3%BCller"))
     assert r.status_code == 200, r.text
     b = db.query(Benutzer).filter(Benutzer.benutzername == "neu42").first()
-    assert b and b.vorname == "Max" and b.nachname == "Müller" and b.rolle == Rolle.MITARBEITER and b.passwort_klartext is None
+    assert b and b.vorname == "Max" and b.nachname == "Müller" and b.rolle == Rolle.MITARBEITER
+    assert not hasattr(b, "passwort_klartext")
     # Rolle folgt dem Portal
     assert client.get("/sso/token", headers=_hdr("neu42", rolle="admin")).json()["benutzer"]["rolle"] == "admin"
     db.refresh(b); assert b.rolle == Rolle.ADMIN

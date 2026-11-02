@@ -126,6 +126,36 @@ def test_hauptadmin_darf_admin_anlegen(db, client):
     assert r.json()["rolle"] == "admin"
 
 
+# ---- Neues Passwort (POST .../neues-passwort) ----
+
+def test_zweitadmin_darf_adminpasswort_nicht_per_reset_setzen(db, client):
+    haupt, zweit, _ = _setup(db)
+    r = client.post(
+        f"/api/admin/benutzer/{haupt.id}/neues-passwort",
+        headers=auth_header(zweit),
+    )
+    assert r.status_code == 403
+
+
+def test_hauptadmin_darf_zweitadminpasswort_per_reset_setzen(db, client):
+    haupt, zweit, _ = _setup(db)
+    r = client.post(
+        f"/api/admin/benutzer/{zweit.id}/neues-passwort",
+        headers=auth_header(haupt),
+    )
+    assert r.status_code == 200
+    assert "passwort" in r.json()
+
+
+def test_zweitadmin_darf_mitarbeiterpasswort_per_reset_setzen(db, client):
+    _, zweit, normal = _setup(db)
+    r = client.post(
+        f"/api/admin/benutzer/{normal.id}/neues-passwort",
+        headers=auth_header(zweit),
+    )
+    assert r.status_code == 200
+
+
 # ---- Löschen (DELETE) ----
 
 def test_zweitadmin_darf_adminprofil_nicht_loeschen(db, client):
