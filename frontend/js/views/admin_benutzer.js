@@ -32,38 +32,79 @@ export async function renderAdminBenutzer() {
             <div class="text-sm text-muted truncate">
               ${escapeHtml(b.benutzername)} · ${escapeHtml(b.rolle)}${b.aktiv ? '' : ' · <span class="text-broken font-medium">gesperrt</span>'}
             </div>
-            <div class="text-sm text-muted mt-1 flex items-center gap-2">
-              <span>Passwort:</span>
-              ${b.passwort_klartext
-                ? `<span data-pw="${b.id}" class="font-mono">••••••••</span>
-                   <button data-pwtoggle="${b.id}" data-shown="0"
-                           class="text-accent text-xs underline">anzeigen</button>`
-                : `<span class="italic">— vom Benutzer geändert</span>`}
-            </div>
           </div>
-          ${b.rolle !== 'admin' || istHauptAdmin()
-            ? `<button data-id="${b.id}" class="${btnClasses('secondary')} text-sm flex-shrink-0">Bearbeiten</button>`
-            : ''}
+          <div class="flex items-center gap-2 flex-shrink-0">
+            ${b.rolle !== 'admin' || istHauptAdmin()
+              ? `<button data-pwreset="${b.id}" class="${btnClasses('secondary')} text-sm">Neues Passwort</button>
+                 <button data-id="${b.id}" class="${btnClasses('secondary')} text-sm">Bearbeiten</button>`
+              : ''}
+          </div>
         </div>`).join('');
       liste.querySelectorAll('[data-id]').forEach((btn) => {
         btn.onclick = () => oeffneFormular(benutzer.find((x) => x.id === +btn.dataset.id));
       });
-      liste.querySelectorAll('[data-pwtoggle]').forEach((btn) => {
-        btn.onclick = () => {
-          const id = +btn.dataset.pwtoggle;
-          const span = liste.querySelector(`[data-pw="${id}"]`);
-          const b = benutzer.find((x) => x.id === id);
-          if (!span || !b) return;
-          const shown = btn.dataset.shown === '1';
-          span.textContent = shown ? '••••••••' : b.passwort_klartext;
-          btn.textContent = shown ? 'anzeigen' : 'verbergen';
-          btn.dataset.shown = shown ? '0' : '1';
-        };
+      liste.querySelectorAll('[data-pwreset]').forEach((btn) => {
+        btn.onclick = () => erzeugeNeuesPasswort(benutzer.find((x) => x.id === +btn.dataset.pwreset));
       });
     } catch (err) {
       document.getElementById('liste').innerHTML =
         `<div class="text-broken p-4">${escapeHtml(err.detail)}</div>`;
     }
+  }
+
+  async function erzeugeNeuesPasswort(bestand) {
+    if (!bestand) return;
+    const ok = await modal({
+      titel: 'Neues Passwort erzeugen',
+      body: `<p class="text-sm text-txt-2">Für <strong>${escapeHtml(bestand.voller_name)}</strong>
+             (${escapeHtml(bestand.benutzername)}) ein neues, zufälliges Passwort erzeugen?
+             Das alte Passwort funktioniert danach nicht mehr.</p>`,
+      buttons: [
+        { label: 'Erzeugen',   variant: 'primary',   value: 'ok' },
+        { label: 'Abbrechen',  variant: 'secondary', value: null },
+      ],
+    });
+    if (ok !== 'ok') return;
+
+    try {
+      const { passwort } = await api.post(`/api/admin/benutzer/${bestand.id}/neues-passwort`);
+      await zeigeNeuesPasswort(bestand, passwort);
+    } catch (err) {
+      toast(err.detail || 'Passwort erzeugen fehlgeschlagen.', 'error');
+    }
+  }
+
+  async function zeigeNeuesPasswort(bestand, passwort) {
+    const body = document.createElement('div');
+    body.innerHTML = `
+      <div class="space-y-3 text-sm">
+        <p class="text-txt-2">Neues Passwort für
+           <strong>${escapeHtml(bestand.voller_name)}</strong>
+           (${escapeHtml(bestand.benutzername)}):</p>
+        <div class="flex items-center gap-2">
+          <code id="bu-pw-neu-wert" class="flex-1 font-mono text-lg bg-surface-2 rounded-lg px-3 py-2 select-all">${escapeHtml(passwort)}</code>
+          <button id="bu-pw-kopieren" class="${btnClasses('secondary')} text-sm flex-shrink-0">Kopieren</button>
+        </div>
+        <p class="text-sm text-broken font-medium">
+          Wird nirgends gespeichert — jetzt an die Person weitergeben.
+        </p>
+      </div>`;
+
+    const kopierBtn = body.querySelector('#bu-pw-kopieren');
+    kopierBtn.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(passwort);
+        toast('Passwort kopiert.', 'success');
+      } catch {
+        toast('Kopieren nicht möglich — bitte markieren und selbst kopieren.', 'error');
+      }
+    };
+
+    await modal({
+      titel: 'Neues Passwort',
+      body,
+      buttons: [{ label: 'Fertig', variant: 'primary', value: 'ok' }],
+    });
   }
 
   async function oeffneFormular(bestand) {
