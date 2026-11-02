@@ -26,6 +26,7 @@ from backend.models import (
     MaschinenStatus,
     Rolle,
     Zubehoer,
+    generiere_zufallspasswort,
     get_db,
 )
 from backend.schemas import (
@@ -40,6 +41,7 @@ from backend.schemas import (
     MaschineKurz,
     MaschineOut,
     MaschineUpdate,
+    NeuesPasswortOut,
     SammeldruckRequest,
     StatistikenOut,
     TopMaschineEintrag,
@@ -692,6 +694,33 @@ def benutzer_bearbeiten(
     db.commit()
     db.refresh(benutzer)
     return benutzer
+
+
+@router.post("/benutzer/{benutzer_id}/neues-passwort", response_model=NeuesPasswortOut)
+def benutzer_neues_passwort(
+    benutzer_id: int,
+    db: Session = Depends(get_db),
+    current_user: Benutzer = Depends(require_admin),
+) -> NeuesPasswortOut:
+    """Erzeugt ein zufälliges neues Passwort für den Benutzer (Admin-Reset).
+
+    Das Passwort wird nur gehasht gespeichert und GENAU EINMAL in dieser Antwort
+    zurückgegeben (Pentest-Befund #1: kein Klartext-Passwort mehr in der DB).
+    Admin-Profile zurücksetzen darf nur der Haupt-Administrator."""
+    benutzer = db.query(Benutzer).filter(Benutzer.id == benutzer_id).first()
+    if benutzer is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Benutzer nicht gefunden."
+        )
+    if benutzer.rolle == Rolle.ADMIN and current_user.benutzername != HAUPT_ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Nur der Haupt-Administrator darf Admin-Profile bearbeiten.",
+        )
+    neues_passwort = generiere_zufallspasswort()
+    benutzer.setze_passwort(neues_passwort)
+    db.commit()
+    return NeuesPasswortOut(passwort=neues_passwort)
 
 
 @router.delete("/benutzer/{benutzer_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -217,7 +217,6 @@ class BenutzerOut(_ORM):
     rolle: Rolle
     email: Optional[str] = None
     aktiv: bool
-    passwort_klartext: Optional[str] = None
     erstellt_am: datetime
 
 
@@ -237,6 +236,14 @@ class BenutzerUpdate(BaseModel):
     rolle: Optional[Rolle] = None
     aktiv: Optional[bool] = None
     neues_passwort: Optional[str] = Field(None, min_length=4)
+
+
+class NeuesPasswortOut(BaseModel):
+    """Antwort auf das Erzeugen eines neuen Zufallspassworts (Admin).
+
+    Das Passwort wird GENAU EINMAL in dieser Antwort übertragen und nirgends
+    im Klartext gespeichert — danach ist es nur noch als Hash in der DB."""
+    passwort: str
 
 
 # ============================================================
