@@ -3,6 +3,9 @@ import { state } from '../app.js';
 import { btnClasses, escapeHtml, wortmarkeMarkup } from '../ui.js';
 
 export async function renderLogin() {
+  // Seitenprüfung 2026-11-10: Wer schon angemeldet ist und #/login im selben Tab aufruft, wurde bisher
+  // clientseitig abgemeldet (Token blieb gültig) und lief in eine Umleitungsschleife → stattdessen zur Startseite.
+  if (state.benutzer) { location.hash = '#/'; return; }
   state.benutzer = null;
   const app = document.getElementById('app');
   app.innerHTML = `
