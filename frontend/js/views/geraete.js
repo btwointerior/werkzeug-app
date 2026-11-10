@@ -13,9 +13,9 @@ export async function renderGeraete() {
         <h1 class="text-2xl font-bold text-txt">Geräte</h1>
         <button id="g-ohne-code" class="${btnClasses('secondary')} text-sm">📦 Ohne Code</button>
       </div>
-      <div class="flex gap-2 mb-4">
+      <div class="flex flex-wrap gap-2 mb-4">
         <input id="g-suche" placeholder="Suche..."
-               class="flex-1 border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted">
+               class="flex-1 min-w-[160px] border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted">
         <select id="g-status" class="border border-border rounded-lg px-3 py-2 bg-surface text-txt">
           <option value="">Alle Status</option>
           <option value="verfuegbar">Verfügbar</option>

@@ -12,9 +12,9 @@ export async function renderAdminFreieAusgaben() {
         <h1 class="text-2xl font-bold text-txt">📦 Freie Ausgaben</h1>
         <a href="#/admin" class="${btnClasses('secondary')} text-sm">Zurück</a>
       </div>
-      <div class="flex gap-2 mb-4">
+      <div class="flex flex-wrap gap-2 mb-4">
         <input id="fa-suche" placeholder="Suche (Text, Baustelle, Team, Name)…"
-               class="flex-1 border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted">
+               class="flex-1 min-w-[160px] border border-border rounded-lg px-3 py-2 bg-surface text-txt placeholder:text-muted">
         <select id="fa-filter" class="border border-border rounded-lg px-3 py-2 bg-surface text-txt">
           <option value="true">Offen</option>
           <option value="alle">Alle</option>
