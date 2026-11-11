@@ -8,13 +8,16 @@ Tabellen:
 - SchneidwerkzeugEreignis : Verlauf (angelegt, Statuswechsel, Schärfdienst)
 - SchaerfAuftrag          : eine Abgabe an den Schärfdienst
 - SchaerfPosition         : ein Werkzeug in einem Schärfauftrag (Rückkehr, Kosten, Ergebnis)
+- WerkstattMaschine       : feste Liste der Maschinen, in die Werkzeuge eingebaut werden
+- Verbrauchsteil          : Teile, die getauscht statt geschärft werden – nur als Stückzahl
+- VerbrauchsBewegung      : Zugang/Entnahme eines Verbrauchsteils
 
 Status und Art sind einfache Texte (keine DB-Enums), damit neue Werte ohne Migration möglich sind.
 """
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from backend.models import Base
@@ -45,7 +48,24 @@ STATUS = {
 }
 
 ERGEBNIS_GESCHAERFT = "geschaerft"
+ERGEBNIS_NEU_BESTUECKT = "neu_bestueckt"   # Sägeblatt hat neue Zähne bekommen – zählt nicht als Schärfung
 ERGEBNIS_AUSGEMUSTERT = "ausgemustert"
+ERGEBNISSE = {
+    ERGEBNIS_GESCHAERFT: "geschärft",
+    ERGEBNIS_NEU_BESTUECKT: "neu bestückt",
+    ERGEBNIS_AUSGEMUSTERT: "ausgemustert",
+}
+
+# Vorgaben des Betriebs (fb 2026-11-11). Die Maschinenliste wird beim ersten Zugriff angelegt und ist
+# danach in der App änderbar; die Schärfdienste stehen immer zur Auswahl.
+STANDARD_MASCHINEN = [
+    "CNC liegend", "CNC stehend", "Plattensäge", "Kreissäge", "Tischkreissäge", "Kappsäge", "Kantenanleimmaschine",
+]
+STANDARD_DIENSTE = ["Bukara", "Leuco"]
+MATERIALIEN = ["Spanplatte", "MDF", "HPL / Schichtstoff", "Massivholz", "Sperrholz / Multiplex", "Furnierte Platte",
+               "Kunststoff / Acryl", "Mineralwerkstoff", "Aluminium"]
+# Arten, deren Maße nach dem Schärfen an der CNC geprüft werden müssen.
+ARTEN_MIT_MASSPRUEFUNG = ("fraeser", "bohrer")
 
 
 def _jetzt() -> datetime:
@@ -77,6 +97,13 @@ class Schneidwerkzeug(Base):
     partner_id = Column(Integer, ForeignKey("schneidwerkzeuge.id", ondelete="SET NULL"), nullable=True)
     notiz = Column(Text, nullable=True)
     erstellt_am = Column(DateTime, default=_jetzt, nullable=False)
+    # --- Nachträglich ergänzt (auf der Bestands-DB per ALTER TABLE nachgezogen, siehe Deploy-Notiz) ---
+    einsatzgebiet = Column(Text, nullable=True)            # wofür das Werkzeug gedacht ist
+    materialien = Column(String(300), nullable=True)       # kommagetrennt, z. B. „Spanplatte, MDF"
+    drehzahl_empfohlen = Column(Integer, nullable=True)    # 1/min
+    vorschub_empfohlen = Column(Float, nullable=True)      # m/min
+    parameter_notiz = Column(Text, nullable=True)          # Zustellung, Gleich-/Gegenlauf, Besonderheiten
+    masse_pruefen = Column(Boolean, nullable=False, default=False, server_default="0")  # nach dem Schärfen: Maße an der CNC prüfen
 
     # Satz (z. B. Sägeblatt + Vorritzer): die Verknüpfung steht nur bei einem der beiden, gilt aber in beide Richtungen.
     partner = relationship("Schneidwerkzeug", remote_side=[id], foreign_keys=[partner_id], backref="partner_von")
@@ -104,7 +131,14 @@ class Schneidwerkzeug(Base):
 
     @property
     def anzahl_schaerfungen(self) -> int:
-        return sum(1 for p in self.schaerfpositionen if p.ergebnis == ERGEBNIS_GESCHAERFT)
+        """Schärfungen seit der letzten Neubestückung (neue Zähne setzen den Zähler zurück)."""
+        n = 0
+        for p in self.schaerfpositionen:  # neueste zuerst
+            if p.ergebnis == ERGEBNIS_NEU_BESTUECKT:
+                break
+            if p.ergebnis == ERGEBNIS_GESCHAERFT:
+                n += 1
+        return n
 
     @property
     def rest_schaerfungen(self) -> int | None:
@@ -194,6 +228,10 @@ class SchaerfPosition(Base):
         return self.werkzeug.code
 
     @property
+    def werkzeug_art(self) -> str:
+        return self.werkzeug.art
+
+    @property
     def werkzeug_bezeichnung(self) -> str:
         return self.werkzeug.bezeichnung
 
@@ -204,3 +242,56 @@ class SchaerfPosition(Base):
     @property
     def abgabe_zeitpunkt(self) -> datetime:
         return self.auftrag.abgabe_zeitpunkt
+
+
+class WerkstattMaschine(Base):
+    """Maschine, in die Schneidwerkzeuge eingebaut werden (feste Auswahlliste)."""
+    __tablename__ = "werkstatt_maschinen"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(80), unique=True, nullable=False)
+    sortierung = Column(Integer, nullable=False, default=0)
+    aktiv = Column(Boolean, nullable=False, default=True)
+
+
+class Verbrauchsteil(Base):
+    """Teil, das getauscht statt geschärft wird (Messer der Kantenanleimmaschine, Wendeplatten) – nur Stückzahl."""
+    __tablename__ = "verbrauchsteile"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    bezeichnung = Column(String(200), nullable=False)
+    hersteller = Column(String(120), nullable=True)
+    artikelnummer = Column(String(80), nullable=True)
+    maschine = Column(String(80), nullable=True)
+    lagerort = Column(String(80), nullable=True)
+    bestand = Column(Integer, nullable=False, default=0)
+    mindestbestand = Column(Integer, nullable=True)
+    notiz = Column(Text, nullable=True)
+    erstellt_am = Column(DateTime, default=_jetzt, nullable=False)
+
+    bewegungen = relationship(
+        "VerbrauchsBewegung", back_populates="teil", order_by="VerbrauchsBewegung.id.desc()",
+        cascade="all, delete-orphan",
+    )
+
+    @property
+    def unter_mindestbestand(self) -> bool:
+        return self.mindestbestand is not None and self.bestand < self.mindestbestand
+
+
+class VerbrauchsBewegung(Base):
+    __tablename__ = "verbrauchsteil_bewegungen"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    teil_id = Column(Integer, ForeignKey("verbrauchsteile.id", ondelete="CASCADE"), nullable=False, index=True)
+    zeitpunkt = Column(DateTime, default=_jetzt, nullable=False)
+    benutzer_id = Column(Integer, ForeignKey("benutzer.id", ondelete="SET NULL"), nullable=True)
+    menge = Column(Integer, nullable=False)   # + Zugang, − Entnahme
+    text = Column(Text, nullable=True)
+
+    teil = relationship("Verbrauchsteil", back_populates="bewegungen")
+    benutzer = relationship("Benutzer")
+
+    @property
+    def benutzer_name(self) -> str | None:
+        return self.benutzer.voller_name if self.benutzer else None

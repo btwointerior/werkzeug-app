@@ -17,13 +17,16 @@ from backend import qr
 from backend.dependencies import get_current_user, require_admin
 from backend.models import Benutzer, Rolle, get_db
 from backend.schneidwerkzeug_models import (
-    ARTEN, ERGEBNIS_AUSGEMUSTERT, ERGEBNIS_GESCHAERFT, STATUS, STATUS_GESPERRT, STATUS_LAGER,
+    ARTEN, ARTEN_MIT_MASSPRUEFUNG, ERGEBNIS_AUSGEMUSTERT, ERGEBNIS_GESCHAERFT, ERGEBNIS_NEU_BESTUECKT, ERGEBNISSE,
+    MATERIALIEN, STANDARD_DIENSTE, STANDARD_MASCHINEN, STATUS, STATUS_GESPERRT, STATUS_LAGER,
     STATUS_MASCHINE, STATUS_SCHAERFDIENST, STATUS_STUMPF, STATUS_VERSCHROTTET,
     SchaerfAuftrag, SchaerfPosition, Schneidwerkzeug, SchneidwerkzeugEreignis,
+    VerbrauchsBewegung, Verbrauchsteil, WerkstattMaschine,
 )
 
 router = APIRouter(prefix="/api/schneidwerkzeuge", tags=["Schneidwerkzeuge"])
 schaerf_router = APIRouter(prefix="/api/schaerfauftraege", tags=["Schärfaufträge"])
+verbrauch_router = APIRouter(prefix="/api/verbrauchsteile", tags=["Verbrauchsteile"])
 
 CODE_RE = re.compile(r"^[A-Z]{2}-\d{3,5}$")
 
@@ -54,6 +57,11 @@ class WerkzeugEingabe(BaseModel):
     lagerort: Optional[str] = Field(None, max_length=80)
     partner_code: Optional[str] = Field(None, max_length=20)
     notiz: Optional[str] = Field(None, max_length=2000)
+    einsatzgebiet: Optional[str] = Field(None, max_length=1000)
+    materialien: Optional[str] = Field(None, max_length=300)
+    drehzahl_empfohlen: Optional[int] = Field(None, ge=0, le=100000)
+    vorschub_empfohlen: Optional[float] = Field(None, ge=0, le=500)
+    parameter_notiz: Optional[str] = Field(None, max_length=1000)
 
 
 class StatusEingabe(BaseModel):
@@ -88,6 +96,12 @@ class WerkzeugOut(_ORM):
     platz: Optional[str] = None
     partner_code: Optional[str] = None
     notiz: Optional[str] = None
+    einsatzgebiet: Optional[str] = None
+    materialien: Optional[str] = None
+    drehzahl_empfohlen: Optional[int] = None
+    vorschub_empfohlen: Optional[float] = None
+    parameter_notiz: Optional[str] = None
+    masse_pruefen: bool = False
     anzahl_schaerfungen: int
     rest_schaerfungen: Optional[int] = None
     schaerfkosten_cent: int
@@ -122,6 +136,7 @@ class PositionOut(_ORM):
     werkzeug_id: int
     werkzeug_code: str
     werkzeug_bezeichnung: str
+    werkzeug_art: str
     zurueck_am: Optional[datetime] = None
     ergebnis: Optional[str] = None
     kosten_cent: Optional[int] = None
@@ -153,6 +168,9 @@ class RueckgabePosition(BaseModel):
     kosten_cent: Optional[int] = Field(None, ge=0, le=100_000_00)
     lagerort: Optional[str] = Field(None, max_length=80)
     notiz: Optional[str] = Field(None, max_length=500)
+    # Nur Fräser/Bohrer: Maße nach dem Schärfen (freiwillig; ohne Angabe bleiben die alten stehen)
+    neuer_durchmesser_mm: Optional[float] = Field(None, gt=0, le=2000)
+    neue_laenge_mm: Optional[float] = Field(None, gt=0, le=2000)
 
 
 class RueckgabeEingabe(BaseModel):
@@ -188,6 +206,18 @@ def _lade(db: Session, werkzeug_id: int) -> Schneidwerkzeug:
     if w is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Werkzeug nicht gefunden.")
     return w
+
+
+def maschinen_liste(db: Session, nur_aktive: bool = True) -> list[WerkstattMaschine]:
+    """Feste Maschinenliste; beim allerersten Zugriff mit den Vorgaben des Betriebs gefüllt."""
+    if db.query(WerkstattMaschine).count() == 0:
+        for i, name in enumerate(STANDARD_MASCHINEN):
+            db.add(WerkstattMaschine(name=name, sortierung=i))
+        db.commit()
+    q = db.query(WerkstattMaschine)
+    if nur_aktive:
+        q = q.filter(WerkstattMaschine.aktiv.is_(True))
+    return q.order_by(WerkstattMaschine.sortierung, WerkstattMaschine.name).all()
 
 
 def naechster_code(db: Session, art: str) -> str:
@@ -235,6 +265,13 @@ def _uebernehme(w: Schneidwerkzeug, e: WerkzeugEingabe) -> None:
     w.kaufpreis_cent = e.kaufpreis_cent
     w.lagerort = _leer(e.lagerort)
     w.notiz = _leer(e.notiz)
+    w.einsatzgebiet = _leer(e.einsatzgebiet)
+    # Materialien: kommagetrennt, ohne Doppelte, Reihenfolge wie eingegeben
+    teile = list(dict.fromkeys(t.strip() for t in (e.materialien or "").split(",") if t.strip()))
+    w.materialien = ", ".join(teile) or None
+    w.drehzahl_empfohlen = e.drehzahl_empfohlen
+    w.vorschub_empfohlen = e.vorschub_empfohlen
+    w.parameter_notiz = _leer(e.parameter_notiz)
 
 
 # --------------------------------------------------------------------------------------
@@ -268,31 +305,41 @@ def liste(
             Schneidwerkzeug.code.ilike(muster), Schneidwerkzeug.bezeichnung.ilike(muster),
             Schneidwerkzeug.hersteller.ilike(muster), Schneidwerkzeug.artikelnummer.ilike(muster),
             Schneidwerkzeug.maschine.ilike(muster), Schneidwerkzeug.lagerort.ilike(muster),
+            Schneidwerkzeug.einsatzgebiet.ilike(muster), Schneidwerkzeug.materialien.ilike(muster),
         ))
     return q.order_by(Schneidwerkzeug.code).all()
 
 
 @router.get("/stammwerte")
 def stammwerte(_: Benutzer = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
-    """Auswahlwerte für Formulare: Arten, Status, bisher verwendete Maschinen/Lagerorte/Dienste, nächste Codes."""
+    """Auswahlwerte für Formulare: Arten, Status, Maschinenliste, Lagerorte, Schärfdienste, Materialien, nächste Codes."""
     def werte(spalte):
         return sorted({v for (v,) in db.query(spalte).distinct() if v}, key=str.lower)
     return {
         "arten": [{"key": k, "text": t, "praefix": p} for k, (t, p) in ARTEN.items()],
         "status": [{"key": k, "text": t} for k, t in STATUS.items()],
-        "maschinen": werte(Schneidwerkzeug.maschine),
+        "maschinen": [m.name for m in maschinen_liste(db)],
         "lagerorte": werte(Schneidwerkzeug.lagerort),
-        "dienste": werte(SchaerfAuftrag.dienst),
+        # feste Schärfdienste zuerst, danach weitere, die schon einmal verwendet wurden
+        "dienste": STANDARD_DIENSTE + [d for d in werte(SchaerfAuftrag.dienst) if d not in STANDARD_DIENSTE],
+        "materialien": MATERIALIEN,
+        "ergebnisse": [{"key": k, "text": t} for k, t in ERGEBNISSE.items()],
         "naechste_codes": {k: naechster_code(db, k) for k in ARTEN},
     }
 
 
 @router.get("/uebersicht")
 def uebersicht(_: Benutzer = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
-    """Zahlen je Status und Typen, für die kein scharfes Ersatzwerkzeug im Lager liegt."""
-    alle = db.query(Schneidwerkzeug).filter(Schneidwerkzeug.status != STATUS_VERSCHROTTET).all()
+    """Zahlen je Status, Warnungen und die Verteilung nach Ort (je Maschine, je Lagerfach)."""
+    alle = (
+        db.query(Schneidwerkzeug).options(selectinload(Schneidwerkzeug.schaerfpositionen))
+        .filter(Schneidwerkzeug.status != STATUS_VERSCHROTTET).order_by(Schneidwerkzeug.code).all()
+    )
+    kurz = lambda w: {"code": w.code, "bezeichnung": w.bezeichnung, "art_text": w.art_text, "platz": w.platz, "status": w.status}  # noqa: E731
     je_status = {k: 0 for k in STATUS if k != STATUS_VERSCHROTTET}
     gruppen: dict[tuple, dict] = {}
+    in_maschine: dict[str, list] = {m.name: [] for m in maschinen_liste(db)}
+    im_lager: dict[str, list] = {}
     for w in alle:
         je_status[w.status] = je_status.get(w.status, 0) + 1
         # Gleicher Typ = gleiche Artikelnummer (sonst gleiche Bezeichnung) innerhalb der Art.
@@ -301,14 +348,79 @@ def uebersicht(_: Benutzer = Depends(get_current_user), db: Session = Depends(ge
         g["gesamt"] += 1
         if w.status == STATUS_LAGER:
             g["lager"] += 1
+            im_lager.setdefault(w.lagerort or "", []).append(kurz(w))
         if w.status == STATUS_MASCHINE:
             g["maschine"] += 1
+            in_maschine.setdefault(w.maschine or "Ohne Maschine", []).append(kurz(w))
     ohne_ersatz = sorted(
         (g for g in gruppen.values() if g["maschine"] > 0 and g["lager"] == 0),
         key=lambda g: g["bezeichnung"].lower(),
     )
+    # Schärfungen fast aufgebraucht: höchstens noch eine möglich.
+    fast = [dict(kurz(w), rest=w.rest_schaerfungen) for w in alle if w.rest_schaerfungen is not None and w.rest_schaerfungen <= 1]
     offen = db.query(SchaerfAuftrag).filter(SchaerfAuftrag.abgeschlossen_am.is_(None)).count()
-    return {"je_status": je_status, "gesamt": len(alle), "ohne_ersatz": ohne_ersatz, "offene_schaerfauftraege": offen}
+    teile = db.query(Verbrauchsteil).order_by(Verbrauchsteil.bezeichnung).all()
+    return {
+        "je_status": je_status, "gesamt": len(alle), "ohne_ersatz": ohne_ersatz, "offene_schaerfauftraege": offen,
+        "fast_aufgebraucht": fast,
+        "masse_pruefen": [kurz(w) for w in alle if w.masse_pruefen],
+        "nachbestellen": [{"id": t.id, "bezeichnung": t.bezeichnung, "bestand": t.bestand, "mindestbestand": t.mindestbestand} for t in teile if t.unter_mindestbestand],
+        "nach_ort": {
+            "maschinen": [{"name": n, "werkzeuge": ws} for n, ws in in_maschine.items()],
+            "lager": [{"name": n or "Ohne Fach", "werkzeuge": ws} for n, ws in sorted(im_lager.items(), key=lambda x: (x[0] == "", x[0].lower()))],
+        },
+    }
+
+
+# ---- Maschinenliste (lesen: alle, ändern: Admin) ----
+
+class MaschineEingabe(BaseModel):
+    name: str = Field(..., min_length=1, max_length=80)
+    aktiv: bool = True
+
+
+class MaschineOut(_ORM):
+    id: int
+    name: str
+    aktiv: bool
+
+
+@router.get("/maschinen", response_model=list[MaschineOut])
+def maschinen(_: Benutzer = Depends(get_current_user), db: Session = Depends(get_db)) -> list[WerkstattMaschine]:
+    return maschinen_liste(db, nur_aktive=False)
+
+
+@router.post("/maschinen", response_model=MaschineOut, status_code=status.HTTP_201_CREATED)
+def maschine_anlegen(e: MaschineEingabe, _: Benutzer = Depends(require_admin), db: Session = Depends(get_db)) -> WerkstattMaschine:
+    name = e.name.strip()
+    vorhandene = maschinen_liste(db, nur_aktive=False)
+    if any(m.name.lower() == name.lower() for m in vorhandene):
+        raise HTTPException(status.HTTP_409_CONFLICT, f"Die Maschine „{name}“ gibt es schon.")
+    m = WerkstattMaschine(name=name, aktiv=True, sortierung=max((x.sortierung for x in vorhandene), default=-1) + 1)
+    db.add(m)
+    db.commit()
+    return m
+
+
+@router.put("/maschinen/{maschine_id}", response_model=MaschineOut)
+def maschine_aendern(maschine_id: int, e: MaschineEingabe, _: Benutzer = Depends(require_admin), db: Session = Depends(get_db)) -> WerkstattMaschine:
+    """Umbenennen zieht alle eingebauten Werkzeuge und zugeordneten Verbrauchsteile mit; Abschalten nur ohne eingebaute Werkzeuge."""
+    m = next((x for x in maschinen_liste(db, nur_aktive=False) if x.id == maschine_id), None)
+    if m is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Maschine nicht gefunden.")
+    name = e.name.strip()
+    if any(x.id != m.id and x.name.lower() == name.lower() for x in maschinen_liste(db, nur_aktive=False)):
+        raise HTTPException(status.HTTP_409_CONFLICT, f"Die Maschine „{name}“ gibt es schon.")
+    eingebaut = db.query(Schneidwerkzeug).filter(Schneidwerkzeug.maschine == m.name, Schneidwerkzeug.status == STATUS_MASCHINE).count()
+    if not e.aktiv and eingebaut:
+        raise HTTPException(status.HTTP_409_CONFLICT, f"In „{m.name}“ sind noch {eingebaut} Werkzeug(e) eingebaut. Bitte zuerst ausbauen.")
+    if name != m.name:
+        db.query(Schneidwerkzeug).filter(Schneidwerkzeug.maschine == m.name).update({"maschine": name})
+        db.query(Verbrauchsteil).filter(Verbrauchsteil.maschine == m.name).update({"maschine": name})
+        m.name = name
+    m.aktiv = e.aktiv
+    db.commit()
+    return m
 
 
 @router.get("/code/{code}", response_model=WerkzeugDetail)
@@ -394,6 +506,10 @@ def status_setzen(
         maschine = _leer(e.maschine)
         if not maschine:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "Bitte die Maschine angeben, in die das Werkzeug eingebaut wird.")
+        erlaubt = {m.name.lower(): m.name for m in maschinen_liste(db)}
+        if maschine.lower() not in erlaubt:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Die Maschine „{maschine}“ steht nicht in der Maschinenliste.")
+        maschine = erlaubt[maschine.lower()]
         w.maschine, w.platz = maschine, _leer(e.platz)
         text = f"Eingebaut in {maschine}" + (f", Platz {w.platz}" if w.platz else "") + "."
     else:
@@ -412,6 +528,17 @@ def status_setzen(
     w.status = ziel
     _ereignis(db, w, benutzer, "status", text)
     db.commit()
+    return _lade(db, w.id)
+
+
+@router.post("/{werkzeug_id}/masse-geprueft", response_model=WerkzeugDetail)
+def masse_geprueft(werkzeug_id: int, benutzer: Benutzer = Depends(get_current_user), db: Session = Depends(get_db)) -> Schneidwerkzeug:
+    """Hakt den Hinweis „Maße an der CNC prüfen" ab (nach dem Schärfen von Fräsern und Bohrern)."""
+    w = _lade(db, werkzeug_id)
+    if w.masse_pruefen:
+        w.masse_pruefen = False
+        _ereignis(db, w, benutzer, "masse", "Maße an der CNC geprüft und eingetragen.")
+        db.commit()
     return _lade(db, w.id)
 
 
@@ -491,24 +618,156 @@ def rueckgabe(auftrag_id: int, e: RueckgabeEingabe, admin: Benutzer = Depends(re
         gesehen.add(r.werkzeug_id)
         if r.werkzeug_id not in offen:
             raise HTTPException(status.HTTP_409_CONFLICT, "Ein Werkzeug gehört nicht zu diesem Auftrag oder ist schon zurück.")
-        if r.ergebnis not in (ERGEBNIS_GESCHAERFT, ERGEBNIS_AUSGEMUSTERT):
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Ergebnis muss „geschaerft“ oder „ausgemustert“ sein.")
+        if r.ergebnis not in ERGEBNISSE:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Ergebnis muss eines von {', '.join(ERGEBNISSE)} sein.")
     for r in e.positionen:
         p = offen[r.werkzeug_id]
         w = p.werkzeug
         p.zurueck_am, p.ergebnis, p.kosten_cent, p.notiz = jetzt, r.ergebnis, r.kosten_cent, _leer(r.notiz)
         kosten = f", {r.kosten_cent / 100:.2f} €".replace(".", ",") if r.kosten_cent is not None else ""
-        if r.ergebnis == ERGEBNIS_GESCHAERFT:
-            w.status = STATUS_LAGER
-            if _leer(r.lagerort):
-                w.lagerort = _leer(r.lagerort)
-            rest = w.rest_schaerfungen
-            zusatz = f" Noch {rest} Schärfung(en) möglich." if rest is not None else ""
-            _ereignis(db, w, admin, "schaerf_rueckgabe", f"Vom Schärfdienst {a.dienst} zurück, geschärft{kosten}.{zusatz}")
-        else:
+        if r.ergebnis == ERGEBNIS_AUSGEMUSTERT:
             w.status = STATUS_VERSCHROTTET
             _ereignis(db, w, admin, "schaerf_rueckgabe", f"Vom Schärfdienst {a.dienst} zurück, ausgemustert{kosten}.")
+            continue
+        w.status = STATUS_LAGER
+        if _leer(r.lagerort):
+            w.lagerort = _leer(r.lagerort)
+        zusatz = ""
+        if w.art in ARTEN_MIT_MASSPRUEFUNG:
+            # Fräser/Bohrer sind nach dem Schärfen kleiner – die CNC braucht die neuen Maße.
+            if r.neuer_durchmesser_mm is not None:
+                w.durchmesser_mm = r.neuer_durchmesser_mm
+                zusatz += f" Neuer Durchmesser {r.neuer_durchmesser_mm:g} mm."
+            if r.neue_laenge_mm is not None:
+                w.schneidenlaenge_mm = r.neue_laenge_mm
+                zusatz += f" Neue Länge {r.neue_laenge_mm:g} mm."
+            w.masse_pruefen = True
+            zusatz += " Maße an der CNC prüfen."
+        if r.ergebnis == ERGEBNIS_NEU_BESTUECKT:
+            _ereignis(db, w, admin, "schaerf_rueckgabe", f"Vom Schärfdienst {a.dienst} zurück, neu bestückt{kosten}. Schärfzähler beginnt neu.{zusatz}")
+        else:
+            rest = w.rest_schaerfungen
+            if rest is not None:
+                zusatz = f" Noch {rest} Schärfung(en) möglich." + zusatz
+            _ereignis(db, w, admin, "schaerf_rueckgabe", f"Vom Schärfdienst {a.dienst} zurück, geschärft{kosten}.{zusatz}")
     if all(p.zurueck_am is not None for p in a.positionen):
         a.abgeschlossen_am = jetzt
     db.commit()
     return _lade_auftrag(db, a.id)
+
+
+# --------------------------------------------------------------------------------------
+#  Verbrauchsteile (nur Stückzahl): lesen und Entnahme/Zugang alle, Stammdaten nur Admin
+# --------------------------------------------------------------------------------------
+
+class TeilEingabe(BaseModel):
+    bezeichnung: str = Field(..., min_length=1, max_length=200)
+    hersteller: Optional[str] = Field(None, max_length=120)
+    artikelnummer: Optional[str] = Field(None, max_length=80)
+    maschine: Optional[str] = Field(None, max_length=80)
+    lagerort: Optional[str] = Field(None, max_length=80)
+    mindestbestand: Optional[int] = Field(None, ge=0, le=100000)
+    notiz: Optional[str] = Field(None, max_length=1000)
+    bestand: Optional[int] = Field(None, ge=0, le=100000)  # nur beim Anlegen: Anfangsbestand
+
+
+class BewegungEingabe(BaseModel):
+    menge: int = Field(..., ge=-100000, le=100000)   # + Zugang, − Entnahme
+    text: Optional[str] = Field(None, max_length=300)
+
+
+class BewegungOut(_ORM):
+    id: int
+    zeitpunkt: datetime
+    menge: int
+    text: Optional[str] = None
+    benutzer_name: Optional[str] = None
+
+
+class TeilOut(_ORM):
+    id: int
+    bezeichnung: str
+    hersteller: Optional[str] = None
+    artikelnummer: Optional[str] = None
+    maschine: Optional[str] = None
+    lagerort: Optional[str] = None
+    bestand: int
+    mindestbestand: Optional[int] = None
+    unter_mindestbestand: bool
+    notiz: Optional[str] = None
+
+
+class TeilDetail(TeilOut):
+    bewegungen: list[BewegungOut] = []
+
+
+def _lade_teil(db: Session, teil_id: int) -> Verbrauchsteil:
+    t = (
+        db.query(Verbrauchsteil)
+        .options(selectinload(Verbrauchsteil.bewegungen).selectinload(VerbrauchsBewegung.benutzer))
+        .filter(Verbrauchsteil.id == teil_id).first()
+    )
+    if t is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Verbrauchsteil nicht gefunden.")
+    return t
+
+
+def _uebernehme_teil(t: Verbrauchsteil, e: TeilEingabe) -> None:
+    t.bezeichnung = e.bezeichnung.strip()
+    t.hersteller = _leer(e.hersteller)
+    t.artikelnummer = _leer(e.artikelnummer)
+    t.maschine = _leer(e.maschine)
+    t.lagerort = _leer(e.lagerort)
+    t.mindestbestand = e.mindestbestand
+    t.notiz = _leer(e.notiz)
+
+
+@verbrauch_router.get("", response_model=list[TeilOut])
+def teile(_: Benutzer = Depends(get_current_user), db: Session = Depends(get_db)) -> list[Verbrauchsteil]:
+    return db.query(Verbrauchsteil).order_by(Verbrauchsteil.bezeichnung).all()
+
+
+@verbrauch_router.get("/{teil_id}", response_model=TeilDetail)
+def teil(teil_id: int, _: Benutzer = Depends(get_current_user), db: Session = Depends(get_db)) -> Verbrauchsteil:
+    return _lade_teil(db, teil_id)
+
+
+@verbrauch_router.post("", response_model=TeilDetail, status_code=status.HTTP_201_CREATED)
+def teil_anlegen(e: TeilEingabe, admin: Benutzer = Depends(require_admin), db: Session = Depends(get_db)) -> Verbrauchsteil:
+    t = Verbrauchsteil(bestand=e.bestand or 0)
+    _uebernehme_teil(t, e)
+    db.add(t)
+    if t.bestand:
+        t.bewegungen.append(VerbrauchsBewegung(benutzer_id=admin.id, menge=t.bestand, text="Anfangsbestand"))
+    db.commit()
+    return _lade_teil(db, t.id)
+
+
+@verbrauch_router.put("/{teil_id}", response_model=TeilDetail)
+def teil_aendern(teil_id: int, e: TeilEingabe, _: Benutzer = Depends(require_admin), db: Session = Depends(get_db)) -> Verbrauchsteil:
+    """Ändert die Stammdaten. Der Bestand ändert sich nur über Bewegungen."""
+    t = _lade_teil(db, teil_id)
+    _uebernehme_teil(t, e)
+    db.commit()
+    return _lade_teil(db, t.id)
+
+
+@verbrauch_router.delete("/{teil_id}", status_code=status.HTTP_204_NO_CONTENT)
+def teil_loeschen(teil_id: int, _: Benutzer = Depends(require_admin), db: Session = Depends(get_db)) -> Response:
+    db.delete(_lade_teil(db, teil_id))
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@verbrauch_router.post("/{teil_id}/bewegung", response_model=TeilDetail)
+def teil_bewegung(teil_id: int, e: BewegungEingabe, benutzer: Benutzer = Depends(get_current_user), db: Session = Depends(get_db)) -> Verbrauchsteil:
+    """Entnahme (negativ) oder Zugang (positiv). Der Bestand kann nicht unter null fallen."""
+    t = _lade_teil(db, teil_id)
+    if e.menge == 0:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Die Menge darf nicht 0 sein.")
+    if t.bestand + e.menge < 0:
+        raise HTTPException(status.HTTP_409_CONFLICT, f"Es sind nur noch {t.bestand} Stück da.")
+    t.bestand += e.menge
+    t.bewegungen.append(VerbrauchsBewegung(benutzer_id=benutzer.id, menge=e.menge, text=_leer(e.text)))
+    db.commit()
+    return _lade_teil(db, t.id)
