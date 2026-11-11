@@ -119,3 +119,42 @@ def sammel_pdf(maschinen: list[Maschine]) -> bytes:
     c.showPage()
     c.save()
     return buf.getvalue()
+
+
+def schneidwerkzeug_pdf(werkzeug) -> bytes:
+    """A6-Etikett für ein Schneidwerkzeug (Sägeblatt, Fräser …): QR, Code, Bezeichnung, Kenndaten.
+
+    Der QR führt auf die Werkzeug-Seite (#/sw/CODE); der Scanner der App erkennt den Code am Präfix.
+    """
+    buf = BytesIO()
+    breite, hoehe = A6
+    c = canvas.Canvas(buf, pagesize=A6)
+    rand = 6 * mm
+    innen = breite - 2 * rand
+    qr_size = min(55 * mm, innen, hoehe * 0.55)
+    qr_y = hoehe - qr_size - 10 * mm
+    c.drawImage(_qr_bild(f"{settings.BASE_URL}/#/sw/{werkzeug.code}"), (breite - qr_size) / 2, qr_y,
+                width=qr_size, height=qr_size)
+    y = qr_y - 12 * mm
+    c.setFont("Helvetica-Bold", _angepasste_groesse(c, werkzeug.code, "Helvetica-Bold", 28, 14, innen))
+    c.drawCentredString(breite / 2, y, werkzeug.code)
+    y -= 8 * mm
+    name = werkzeug.bezeichnung
+    c.setFont("Helvetica", _angepasste_groesse(c, name, "Helvetica", 13, 7, innen))
+    c.drawCentredString(breite / 2, y, name)
+    teile = [werkzeug.art_text]
+    if werkzeug.durchmesser_mm:
+        teile.append(f"Ø {werkzeug.durchmesser_mm:g} mm")
+    if werkzeug.zaehnezahl:
+        teile.append(f"Z {werkzeug.zaehnezahl}")
+    if werkzeug.schneidstoff:
+        teile.append(werkzeug.schneidstoff)
+    if werkzeug.max_drehzahl:
+        teile.append(f"n max {werkzeug.max_drehzahl}")
+    zeile = " · ".join(teile)
+    y -= 6 * mm
+    c.setFont("Helvetica", _angepasste_groesse(c, zeile, "Helvetica", 10, 6, innen))
+    c.drawCentredString(breite / 2, y, zeile)
+    c.showPage()
+    c.save()
+    return buf.getvalue()
