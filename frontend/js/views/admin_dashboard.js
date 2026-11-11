@@ -26,6 +26,14 @@ export async function renderAdminDashboard() {
         <div class="text-2xl mb-1">👥</div>
         <div class="font-medium text-txt">Benutzer</div>
       </a>
+      <a href="#/schneidwerkzeuge" class="bg-surface border border-border rounded-lg p-4 text-center hover:bg-surface-2">
+        <div class="text-2xl mb-1">🪚</div>
+        <div class="font-medium text-txt">Sägeblätter &amp; Fräser</div>
+      </a>
+      <a href="#/schaerfauftraege" class="bg-surface border border-border rounded-lg p-4 text-center hover:bg-surface-2">
+        <div class="text-2xl mb-1">🔁</div>
+        <div class="font-medium text-txt">Schärfaufträge</div>
+      </a>
       <a href="#/admin/freie-ausgaben" class="bg-surface border border-border rounded-lg p-4 text-center hover:bg-surface-2 col-span-2">
         <div class="text-2xl mb-1">📦</div>
         <div class="font-medium text-txt">Freie Ausgaben <span class="text-muted font-normal">(ohne Code)</span></div>

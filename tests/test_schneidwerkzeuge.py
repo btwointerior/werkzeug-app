@@ -63,6 +63,8 @@ def test_satz_aus_saegeblatt_und_vorritzer(client, admin):
     blatt = _neu(client, admin)
     ritzer = _neu(client, admin, art="vorritzer", bezeichnung="Vorritzer 180", partner_code=blatt["code"])
     assert ritzer["partner_code"] == "SB-001"
+    # Die Verknüpfung gilt in beide Richtungen, auch wenn sie nur beim Vorritzer eingetragen ist.
+    assert client.get(f"{API}/{blatt['id']}", headers=auth_header(admin)).json()["partner_code"] == "VR-001"
     r = client.put(f"{API}/{blatt['id']}", json={"art": "saegeblatt", "bezeichnung": "Plattenaufteilblatt 300 Z72", "partner_code": "SB-001"},
                    headers=auth_header(admin))
     assert r.status_code == 400  # nicht sein eigener Partner

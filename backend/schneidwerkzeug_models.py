@@ -78,7 +78,8 @@ class Schneidwerkzeug(Base):
     notiz = Column(Text, nullable=True)
     erstellt_am = Column(DateTime, default=_jetzt, nullable=False)
 
-    partner = relationship("Schneidwerkzeug", remote_side=[id], foreign_keys=[partner_id])
+    # Satz (z. B. Sägeblatt + Vorritzer): die Verknüpfung steht nur bei einem der beiden, gilt aber in beide Richtungen.
+    partner = relationship("Schneidwerkzeug", remote_side=[id], foreign_keys=[partner_id], backref="partner_von")
     ereignisse = relationship(
         "SchneidwerkzeugEreignis", back_populates="werkzeug",
         order_by="SchneidwerkzeugEreignis.id.desc()", cascade="all, delete-orphan",
@@ -97,7 +98,9 @@ class Schneidwerkzeug(Base):
 
     @property
     def partner_code(self) -> str | None:
-        return self.partner.code if self.partner else None
+        if self.partner:
+            return self.partner.code
+        return self.partner_von[0].code if self.partner_von else None
 
     @property
     def anzahl_schaerfungen(self) -> int:

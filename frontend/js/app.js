@@ -18,6 +18,11 @@ import { renderAdminHistorie } from './views/admin_historie.js';
 import { renderAdminBenutzer } from './views/admin_benutzer.js';
 import { renderAdminFreieAusgaben } from './views/admin_freie_ausgaben.js';
 import { neueFreieAusgabe } from './views/freie_ausgabe.js';
+import { renderSchneidwerkzeuge } from './views/schneidwerkzeuge.js';
+import { renderSchneidwerkzeug } from './views/schneidwerkzeug.js';
+import { renderSchneidwerkzeugForm } from './views/schneidwerkzeug_form.js';
+import { renderSchaerfauftraege, renderSchaerfDruck } from './views/schaerfauftraege.js';
+import { istSchneidwerkzeugCode } from './schneidwerkzeug_helfer.js';
 
 // Portal b² (home.b2interior.de): im Web liegt die Oberfläche hinter dem Portal-Login;
 // Abmelden führt dorthin. Die native App (WERKZEUG_API_BASE gesetzt) meldet sich weiter selbst an.
@@ -41,7 +46,18 @@ const ROUTEN = [
   { pattern: /^#\/login$/, public: true, view: renderLogin },
   { pattern: /^#\/meine$/, view: renderMeine },
   { pattern: /^#\/geraete$/, view: renderGeraete },
-  { pattern: /^#\/m\/(.+)$/, view: (m) => renderMaschine(decodeURIComponent(m[1])) },
+  // Codes von Schneidwerkzeugen (SB-…, FR-… usw.) führen auf deren Seite, auch wenn sie als Geräte-Code eingegeben wurden.
+  { pattern: /^#\/m\/(.+)$/, view: (m) => {
+    const code = decodeURIComponent(m[1]);
+    if (istSchneidwerkzeugCode(code)) { location.hash = `#/sw/${encodeURIComponent(code.toUpperCase())}`; return undefined; }
+    return renderMaschine(code);
+  } },
+  { pattern: /^#\/schneidwerkzeuge$/, view: renderSchneidwerkzeuge },
+  { pattern: /^#\/schneidwerkzeuge\/neu$/, admin: true, view: () => renderSchneidwerkzeugForm(null) },
+  { pattern: /^#\/schneidwerkzeuge\/(\d+)\/edit$/, admin: true, view: (m) => renderSchneidwerkzeugForm(+m[1]) },
+  { pattern: /^#\/sw\/(.+)$/, view: (m) => renderSchneidwerkzeug(decodeURIComponent(m[1])) },
+  { pattern: /^#\/schaerfauftraege$/, admin: true, view: renderSchaerfauftraege },
+  { pattern: /^#\/schaerfauftraege\/(\d+)\/druck$/, admin: true, view: (m) => renderSchaerfDruck(+m[1]) },
   { pattern: /^#\/admin$/, admin: true, view: renderAdminDashboard },
   { pattern: /^#\/admin\/maschinen$/, admin: true, view: renderAdminMaschinen },
   { pattern: /^#\/admin\/maschinen\/neu$/, admin: true, view: () => renderAdminMaschineForm(null) },
@@ -129,6 +145,7 @@ function renderChrome() {
   const links = [
     { hash: '#/geraete', label: 'Geräte', icon: '🔧' },
     { hash: '#/meine',   label: 'Meine',  icon: '📋' },
+    { hash: '#/schneidwerkzeuge', label: 'Sägen/Fräser', icon: '🪚' },
     { label: 'Ausleihen', icon: '🔄', action: scanOrAsk },
   ];
   if (state.istAdmin) links.push({ hash: '#/admin', label: 'Admin', icon: '⚙️' });
@@ -168,7 +185,7 @@ async function scanOrAsk() {
     ohneCode: ohneCodeAusgeben,
   });
   const code = await holeWerkzeugCode(quelle);
-  if (code) location.hash = `#/m/${encodeURIComponent(code)}`;
+  if (code) location.hash = istSchneidwerkzeugCode(code) ? `#/sw/${encodeURIComponent(code)}` : `#/m/${encodeURIComponent(code)}`;
   // "Abbrechen" bricht nur ab — keine automatische manuelle Eingabe mehr.
 }
 
@@ -182,7 +199,7 @@ async function ohneCodeAusgeben() {
 async function askCode() {
   const input = document.createElement('input');
   input.type = 'text';
-  input.placeholder = 'z.B. M-0001';
+  input.placeholder = 'z.B. M-001 oder SB-001';
   input.className =
     'w-full bg-surface text-txt placeholder:text-muted border border-border rounded-xl px-3 py-3 text-lg uppercase';
   input.onkeydown = (e) => {
@@ -194,7 +211,7 @@ async function askCode() {
   };
 
   const result = await modal({
-    titel: 'Maschinen-Code eingeben',
+    titel: 'Code eingeben',
     body: input,
     buttons: [
       { label: 'Öffnen',    variant: 'primary',   value: 'go' },
@@ -203,7 +220,7 @@ async function askCode() {
   });
   if (result === 'go') {
     const code = input.value.trim().toUpperCase();
-    if (code) location.hash = `#/m/${encodeURIComponent(code)}`;
+    if (code) location.hash = istSchneidwerkzeugCode(code) ? `#/sw/${encodeURIComponent(code)}` : `#/m/${encodeURIComponent(code)}`;
   }
 }
 

@@ -44,3 +44,8 @@ test('QR-URL mit Query nach dem Code → nur Code', () => {
 test('percent-kodierter Code wird dekodiert', () => {
   assert.equal(parseScan('#/m/M%2D0042'), 'M-0042');
 });
+
+test('QR-Etikett eines Schneidwerkzeugs (#/sw/) → Code', () => {
+  assert.equal(parseScan('https://werkzeug.b2interior.de/#/sw/SB-001'), 'SB-001');
+  assert.equal(parseScan('#/sw/fr-012'), 'FR-012');
+});

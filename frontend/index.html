@@ -66,6 +66,13 @@
        .app-top/.tabbar-Look sichtbar, statt nur unterhalb der b2-design-Mobil-Schwelle. */
     #topbar.brand-top { display: flex; align-items: center; gap: var(--sp-3); position: sticky; top: 0; z-index: 30; height: calc(52px + env(safe-area-inset-top)); padding: env(safe-area-inset-top) var(--sp-4) 0 var(--sp-4); background: var(--c-surface); border-bottom: 1px solid var(--c-border); }
     #topbar.brand-top .brand { padding: 0; gap: 8px; }
+    /* Druck (Begleitliste Schärfdienst): nur das Blatt, ohne Kopf-/Fußleiste und Knöpfe. */
+    @media print {
+      #topbar, #bottomnav, .no-print, #toasts, #modal-root { display: none !important; }
+      body { background: #fff !important; }
+      main { padding: 0 !important; max-width: none !important; }
+      @page { margin: 15mm; }
+    }
     #bottomnav.tabbar-fest { display: grid; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; height: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); background: var(--c-surface); border-top: 1px solid var(--c-border); }
   </style>
 </head>
