@@ -3,7 +3,8 @@
 
 import { btnClasses } from './ui.js';
 
-const MARKER = '#/m/';
+// Geräte-Etiketten führen auf …/#/m/CODE, Schneidwerkzeuge auf …/#/sw/CODE.
+const MARKER_LISTE = ['#/m/', '#/sw/'];
 
 // Macht aus einem gescannten String den Maschinen-Code (oder null).
 // Akzeptiert die QR-URL (…/#/m/CODE) ebenso wie einen rohen Code.
@@ -12,7 +13,8 @@ export function parseScan(text) {
   const s = text.trim();
   if (!s) return null;
 
-  const i = s.indexOf(MARKER);
+  const MARKER = MARKER_LISTE.find((m) => s.includes(m));
+  const i = MARKER ? s.indexOf(MARKER) : -1;
   if (i !== -1) {
     const raw = s.slice(i + MARKER.length).split(/[?#&/\s]/)[0].trim();
     if (!raw) return null;
