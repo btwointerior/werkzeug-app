@@ -67,6 +67,12 @@ async def security_headers_middleware(request: Request, call_next):
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "no-referrer")
     response.headers.setdefault("Content-Security-Policy", _CSP)
+    # Oberfläche (index.html, /static/*): bei jedem Aufruf beim Server nachfragen. Ohne diese Vorgabe
+    # behielten Browser alte Skripte nach einem Deploy (2026-11-11: neue Kacheln fehlten). Dank ETag
+    # kostet die Nachfrage nur eine kurze 304-Antwort. Uploads und API bleiben unberührt.
+    pfad = request.url.path
+    if pfad.startswith("/static/") or not (pfad.startswith("/api/") or pfad.startswith("/uploads/")):
+        response.headers.setdefault("Cache-Control", "no-cache")
     return response
 
 
