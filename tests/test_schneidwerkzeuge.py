@@ -297,7 +297,7 @@ def test_rueckkehr_fraeser_neue_masse_und_pruefhinweis(client, admin, max_):
     assert r.status_code == 200, r.text
     d = client.get(f"{API}/{f['id']}", headers=h).json()
     assert (d["durchmesser_mm"], d["schneidenlaenge_mm"], d["masse_pruefen"]) == (11.8, 34.5, True)
-    assert "Neuer Durchmesser 11.8 mm. Neue Länge 34.5 mm. Maße an der CNC prüfen." in d["ereignisse"][0]["text"]
+    assert "Neuer Durchmesser 11,8 mm. Neue Länge 34,5 mm. Maße an der CNC prüfen." in d["ereignisse"][0]["text"]
     b = client.get(f"{API}/{blatt['id']}", headers=h).json()
     assert (b["durchmesser_mm"], b["masse_pruefen"]) == (None, False)      # Sägeblätter brauchen das nicht
     u = client.get(f"{API}/uebersicht", headers=h).json()

@@ -23,6 +23,7 @@ import { renderSchneidwerkzeug } from './views/schneidwerkzeug.js';
 import { renderSchneidwerkzeugForm } from './views/schneidwerkzeug_form.js';
 import { renderSchaerfauftraege, renderSchaerfDruck } from './views/schaerfauftraege.js';
 import { istSchneidwerkzeugCode } from './schneidwerkzeug_helfer.js';
+import { renderVerbrauchsteile, renderSchneidMaschinen } from './views/verbrauchsteile.js';
 
 // Portal b² (home.b2interior.de): im Web liegt die Oberfläche hinter dem Portal-Login;
 // Abmelden führt dorthin. Die native App (WERKZEUG_API_BASE gesetzt) meldet sich weiter selbst an.
@@ -53,7 +54,9 @@ const ROUTEN = [
     return renderMaschine(code);
   } },
   { pattern: /^#\/schneidwerkzeuge$/, view: renderSchneidwerkzeuge },
-  { pattern: /^#\/schneidwerkzeuge\/neu$/, admin: true, view: () => renderSchneidwerkzeugForm(null) },
+  { pattern: /^#\/schneidwerkzeuge\/neu(?:\?kopie=(\d+))?$/, admin: true, view: (m) => renderSchneidwerkzeugForm(null, m[1] ? +m[1] : null) },
+  { pattern: /^#\/schneidwerkzeuge\/maschinen$/, admin: true, view: renderSchneidMaschinen },
+  { pattern: /^#\/verbrauchsteile$/, view: renderVerbrauchsteile },
   { pattern: /^#\/schneidwerkzeuge\/(\d+)\/edit$/, admin: true, view: (m) => renderSchneidwerkzeugForm(+m[1]) },
   { pattern: /^#\/sw\/(.+)$/, view: (m) => renderSchneidwerkzeug(decodeURIComponent(m[1])) },
   { pattern: /^#\/schaerfauftraege$/, admin: true, view: renderSchaerfauftraege },
@@ -156,11 +159,13 @@ function renderChrome() {
   bottomnav.classList.remove('hidden');
   bottomnav.classList.add('tabbar-fest');
   const aktivHash = location.hash.split('?')[0];
+  // Unterseiten des Bereichs markieren denselben Navigationspunkt.
+  const imBereich = /^#\/(schneidwerkzeuge|sw\/|schaerfauftraege|verbrauchsteile)/.test(aktivHash);
   bottomnav.innerHTML = `
     <div class="max-w-3xl mx-auto w-full grid"
          style="grid-template-columns: repeat(${links.length}, minmax(0, 1fr));">
       ${links.map((l, i) => {
-        const aktiv = l.hash && aktivHash === l.hash;
+        const aktiv = l.hash && (aktivHash === l.hash || (l.hash === '#/schneidwerkzeuge' && imBereich));
         return `
         <button data-i="${i}" aria-label="${escapeHtml(l.label)}"${aktiv ? ' aria-current="page"' : ''}
                 class="flex flex-col items-center justify-center text-xs gap-1 min-h-[44px] ${aktiv ? 'text-accent' : 'text-muted'} hover:bg-surface-2 active:scale-95 transition">

@@ -637,10 +637,10 @@ def rueckgabe(auftrag_id: int, e: RueckgabeEingabe, admin: Benutzer = Depends(re
             # Fräser/Bohrer sind nach dem Schärfen kleiner – die CNC braucht die neuen Maße.
             if r.neuer_durchmesser_mm is not None:
                 w.durchmesser_mm = r.neuer_durchmesser_mm
-                zusatz += f" Neuer Durchmesser {r.neuer_durchmesser_mm:g} mm."
+                zusatz += f" Neuer Durchmesser {r.neuer_durchmesser_mm:g} mm.".replace(".", ",", 1) if "." in f"{r.neuer_durchmesser_mm:g}" else f" Neuer Durchmesser {r.neuer_durchmesser_mm:g} mm."
             if r.neue_laenge_mm is not None:
                 w.schneidenlaenge_mm = r.neue_laenge_mm
-                zusatz += f" Neue Länge {r.neue_laenge_mm:g} mm."
+                zusatz += f" Neue Länge {r.neue_laenge_mm:g} mm.".replace(".", ",", 1) if "." in f"{r.neue_laenge_mm:g}" else f" Neue Länge {r.neue_laenge_mm:g} mm."
             w.masse_pruefen = True
             zusatz += " Maße an der CNC prüfen."
         if r.ergebnis == ERGEBNIS_NEU_BESTUECKT:
