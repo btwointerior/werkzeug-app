@@ -3,7 +3,7 @@
 
 import { api } from '../api.js';
 import { btnClasses, escapeHtml, formatDatum, leerZustand, modal, spinner, toast } from '../ui.js';
-import { centAusEingabe, euro, kenndaten, ortText } from '../schneidwerkzeug_helfer.js';
+import { brauchtMasse, centAusEingabe, ergebnisText, euro, kenndaten, ortText, zahlAusEingabe } from '../schneidwerkzeug_helfer.js';
 
 const feldCls = 'w-full bg-surface text-txt placeholder:text-muted border border-border rounded-xl px-3 py-2';
 
@@ -21,8 +21,12 @@ async function neuerAuftrag() {
   const body = document.createElement('div');
   body.innerHTML = `
     <label class="block text-sm text-muted mb-1" for="sa-dienst">Schärfdienst</label>
-    <input id="sa-dienst" list="sa-dienste" class="${feldCls} mb-3" value="${escapeHtml(werte.dienste[0] || '')}" placeholder="Name des Schärfdienstes" autocomplete="off">
-    <datalist id="sa-dienste">${werte.dienste.map((d) => `<option value="${escapeHtml(d)}">`).join('')}</datalist>
+    <select id="sa-dienst" class="${feldCls} mb-3">
+      <option value="">– bitte wählen –</option>
+      ${werte.dienste.map((d) => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('')}
+      <option value="__anderer">Anderer …</option>
+    </select>
+    <input id="sa-dienst-frei" class="${feldCls} mb-3 hidden" placeholder="Name des Schärfdienstes" autocomplete="off">
     <div class="text-sm text-muted mb-1">Werkzeuge (stumpfe sind vorausgewählt)</div>
     <div class="border border-border rounded-xl max-h-64 overflow-y-auto mb-3">
       ${waehlbar.map((w) => `
@@ -34,12 +38,15 @@ async function neuerAuftrag() {
     </div>
     <label class="block text-sm text-muted mb-1" for="sa-notiz">Bemerkung (optional)</label>
     <input id="sa-notiz" class="${feldCls}" placeholder="z. B. Abholung Donnerstag" autocomplete="off">`;
+  const wahl = body.querySelector('#sa-dienst');
+  const frei = body.querySelector('#sa-dienst-frei');
+  wahl.onchange = () => frei.classList.toggle('hidden', wahl.value !== '__anderer');
   const ok = await modal({ titel: 'Neuer Schärfauftrag', body, buttons: [
     { label: 'Abgeben', variant: 'primary', value: true }, { label: 'Abbrechen', variant: 'secondary', value: null }] });
   if (!ok) return false;
-  const dienst = body.querySelector('#sa-dienst').value.trim();
+  const dienst = (wahl.value === '__anderer' ? frei.value : wahl.value).trim();
   const ids = [...body.querySelectorAll('input[type="checkbox"]:checked')].map((c) => +c.value);
-  if (!dienst) { toast('Bitte den Schärfdienst angeben.', 'error'); return false; }
+  if (!dienst) { toast('Bitte den Schärfdienst wählen.', 'error'); return false; }
   if (!ids.length) { toast('Bitte mindestens ein Werkzeug auswählen.', 'error'); return false; }
   try {
     const a = await api.post('/api/schaerfauftraege', { dienst, werkzeug_ids: ids, notiz: body.querySelector('#sa-notiz').value.trim() || null });
@@ -61,9 +68,13 @@ async function rueckkehrBuchen(a) {
           <span class="text-sm min-w-0"><span class="font-semibold text-txt">${escapeHtml(p.werkzeug_code)}</span> ${escapeHtml(p.werkzeug_bezeichnung)}</span>
         </label>
         <div class="grid grid-cols-2 gap-2 mt-2">
-          <select data-f="ergebnis" aria-label="Ergebnis" class="${feldCls}"><option value="geschaerft">geschärft</option><option value="ausgemustert">ausgemustert</option></select>
+          <select data-f="ergebnis" aria-label="Ergebnis" class="${feldCls}"><option value="geschaerft">geschärft</option><option value="neu_bestueckt">neu bestückt</option><option value="ausgemustert">ausgemustert</option></select>
           <input data-f="kosten" aria-label="Kosten in Euro" class="${feldCls}" placeholder="Kosten €" inputmode="decimal" autocomplete="off">
+          ${brauchtMasse(p.werkzeug_art) ? `
+          <input data-f="durchmesser" aria-label="Neuer Durchmesser in Millimeter" class="${feldCls}" placeholder="Neuer Ø mm" inputmode="decimal" autocomplete="off">
+          <input data-f="laenge" aria-label="Neue Länge in Millimeter" class="${feldCls}" placeholder="Neue Länge mm" inputmode="decimal" autocomplete="off">` : ''}
         </div>
+        ${brauchtMasse(p.werkzeug_art) ? '<div class="text-xs text-muted mt-1">Maße freiwillig. Danach erscheint am Werkzeug der Hinweis „Maße an der CNC prüfen“.</div>' : ''}
       </div>`).join('')}`;
   const ok = await modal({ titel: `Rückkehr von ${a.dienst}`, body, buttons: [
     { label: 'Buchen', variant: 'primary', value: true }, { label: 'Abbrechen', variant: 'secondary', value: null }] });
@@ -73,7 +84,13 @@ async function rueckkehrBuchen(a) {
     if (!box.querySelector('[data-f="da"]').checked) continue;
     const kosten = centAusEingabe(box.querySelector('[data-f="kosten"]').value);
     if (Number.isNaN(kosten)) { toast('Bitte die Kosten als Betrag eingeben, z. B. 14,50.', 'error'); return false; }
-    positionen.push({ werkzeug_id: +box.dataset.pos, ergebnis: box.querySelector('[data-f="ergebnis"]').value, kosten_cent: kosten });
+    const d = box.querySelector('[data-f="durchmesser"]');
+    const l = box.querySelector('[data-f="laenge"]');
+    const neuD = d ? zahlAusEingabe(d.value) : null;
+    const neuL = l ? zahlAusEingabe(l.value) : null;
+    if (Number.isNaN(neuD) || Number.isNaN(neuL) || neuD === 0 || neuL === 0) { toast('Bitte die Maße als Zahl eingeben, z. B. 11,8.', 'error'); return false; }
+    positionen.push({ werkzeug_id: +box.dataset.pos, ergebnis: box.querySelector('[data-f="ergebnis"]').value, kosten_cent: kosten,
+      neuer_durchmesser_mm: neuD, neue_laenge_mm: neuL });
   }
   if (!positionen.length) { toast('Nichts ausgewählt.', 'error'); return false; }
   try {
@@ -96,7 +113,7 @@ function auftragKarte(a) {
       </div>
       <ul class="text-sm mt-3 space-y-1">${a.positionen.map((p) => `
         <li class="flex justify-between gap-3"><a href="#/sw/${encodeURIComponent(p.werkzeug_code)}" class="text-txt hover:underline min-w-0 break-words">${escapeHtml(p.werkzeug_code)} ${escapeHtml(p.werkzeug_bezeichnung)}</a>
-          <span class="text-muted flex-shrink-0">${p.zurueck_am ? `${p.ergebnis === 'ausgemustert' ? 'ausgemustert' : 'geschärft'}${p.kosten_cent != null ? ` · ${euro(p.kosten_cent)}` : ''}` : 'noch weg'}</span></li>`).join('')}</ul>
+          <span class="text-muted flex-shrink-0">${p.zurueck_am ? `${escapeHtml(ergebnisText(p.ergebnis))}${p.kosten_cent != null ? ` · ${euro(p.kosten_cent)}` : ''}` : 'noch weg'}</span></li>`).join('')}</ul>
       <div class="flex flex-wrap gap-2 mt-3">
         ${a.ist_offen ? `<button data-rueck="${a.id}" class="${btnClasses('primary')} text-sm">Rückkehr buchen</button>` : ''}
         <a href="#/schaerfauftraege/${a.id}/druck" class="${btnClasses('secondary')} text-sm">Begleitliste</a>

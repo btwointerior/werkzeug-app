@@ -41,3 +41,15 @@ test('kenndaten, ortText, schaerfText', () => {
   assert.deepEqual(schaerfText({ anzahl_schaerfungen: 2, max_schaerfungen: 2, rest_schaerfungen: 0 }), { text: '2 von 2 geschärft', erschoepft: true });
   assert.deepEqual(schaerfText({ anzahl_schaerfungen: 4, max_schaerfungen: null }), { text: '4× geschärft', erschoepft: false });
 });
+
+test('ergebnisText, brauchtMasse, parameterText', async () => {
+  const { ergebnisText, brauchtMasse, parameterText } = await import('../../frontend/js/schneidwerkzeug_helfer.js');
+  assert.equal(ergebnisText('neu_bestueckt'), 'neu bestückt');
+  assert.equal(ergebnisText('geschaerft'), 'geschärft');
+  assert.equal(ergebnisText(null), '');
+  assert.equal(brauchtMasse('fraeser'), true);
+  assert.equal(brauchtMasse('bohrer'), true);
+  assert.equal(brauchtMasse('saegeblatt'), false);
+  assert.equal(parameterText({ drehzahl_empfohlen: 18000, vorschub_empfohlen: 6.5 }), '18.000 1/min · 6,5 m/min');
+  assert.equal(parameterText({}), '');
+});

@@ -53,3 +53,23 @@ export function schaerfText(w) {
   if (w.max_schaerfungen == null) return { text: `${w.anzahl_schaerfungen}× geschärft`, erschoepft: false };
   return { text: `${w.anzahl_schaerfungen} von ${w.max_schaerfungen} geschärft`, erschoepft: w.rest_schaerfungen === 0 };
 }
+
+const ERGEBNIS_TEXT = { geschaerft: 'geschärft', neu_bestueckt: 'neu bestückt', ausgemustert: 'ausgemustert' };
+
+/** Ergebnis einer Rückkehr vom Schärfdienst als Text. */
+export function ergebnisText(key) {
+  return ERGEBNIS_TEXT[key] || key || '';
+}
+
+/** Braucht die Art nach dem Schärfen neue Maße an der CNC? (Fräser und Bohrer, Sägeblätter nicht) */
+export function brauchtMasse(art) {
+  return art === 'fraeser' || art === 'bohrer';
+}
+
+/** Empfohlene Parameter als kurze Zeile: „18.000 1/min · 6,5 m/min" (leer, wenn nichts hinterlegt). */
+export function parameterText(w) {
+  const teile = [];
+  if (w.drehzahl_empfohlen) teile.push(`${w.drehzahl_empfohlen.toLocaleString('de-DE')} 1/min`);
+  if (w.vorschub_empfohlen) teile.push(`${String(w.vorschub_empfohlen).replace('.', ',')} m/min`);
+  return teile.join(' · ');
+}

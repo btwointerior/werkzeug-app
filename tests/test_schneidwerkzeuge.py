@@ -87,10 +87,13 @@ def test_liste_suche_filter_und_code_abruf(client, admin, max_):
 
 def test_stammwerte_liefern_arten_naechste_codes_und_vorschlaege(client, admin, max_):
     w = _neu(client, admin, lagerort="Schrank 1")
-    _status(client, max_, w["id"], status="maschine", maschine="Holzma HPP 300", platz="Hauptsäge")
+    _status(client, max_, w["id"], status="maschine", maschine="Plattensäge", platz="Hauptsäge")
     s = client.get(f"{API}/stammwerte", headers=auth_header(max_)).json()
     assert s["naechste_codes"]["saegeblatt"] == "SB-002" and s["naechste_codes"]["fraeser"] == "FR-001"
-    assert s["maschinen"] == ["Holzma HPP 300"] and s["lagerorte"] == ["Schrank 1"]
+    assert s["maschinen"] == ["CNC liegend", "CNC stehend", "Plattensäge", "Kreissäge", "Tischkreissäge", "Kappsäge", "Kantenanleimmaschine"]
+    assert s["lagerorte"] == ["Schrank 1"]
+    assert s["dienste"] == ["Bukara", "Leuco"] and "MDF" in s["materialien"]
+    assert [e["key"] for e in s["ergebnisse"]] == ["geschaerft", "neu_bestueckt", "ausgemustert"]
     assert {a["key"] for a in s["arten"]} == {"saegeblatt", "vorritzer", "fraeser", "bohrer", "messer", "sonstiges"}
 
 
@@ -100,9 +103,9 @@ def test_statuswechsel_einbauen_stumpf_lager(client, db, admin, max_):
     w = _neu(client, admin, lagerort="Schrank 1")
     r = _status(client, max_, w["id"], status="maschine")
     assert r.status_code == 400 and "Maschine" in r.json()["detail"]
-    d = _status(client, max_, w["id"], status="maschine", maschine="Holzma HPP 300", platz="Hauptsäge").json()
-    assert (d["status"], d["maschine"], d["platz"], d["lagerort"]) == ("maschine", "Holzma HPP 300", "Hauptsäge", "Schrank 1")
-    assert d["ereignisse"][0]["text"] == "Eingebaut in Holzma HPP 300, Platz Hauptsäge."
+    d = _status(client, max_, w["id"], status="maschine", maschine="Plattensäge", platz="Hauptsäge").json()
+    assert (d["status"], d["maschine"], d["platz"], d["lagerort"]) == ("maschine", "Plattensäge", "Hauptsäge", "Schrank 1")
+    assert d["ereignisse"][0]["text"] == "Eingebaut in Plattensäge, Platz Hauptsäge."
     assert d["ereignisse"][0]["benutzer_name"] == "Vor Nach"
     d = _status(client, max_, w["id"], status="stumpf", notiz="Ausrisse an HPL").json()
     assert (d["status"], d["maschine"], d["platz"]) == ("stumpf", None, None)
@@ -127,7 +130,7 @@ def test_verschrotten_und_reaktivieren_nur_admin(client, admin, max_):
 def test_schaerfauftrag_abgabe_und_rueckkehr(client, db, admin, max_):
     a = _neu(client, admin, max_schaerfungen=2)
     b = _neu(client, admin, art="fraeser", bezeichnung="Fügefräser DP")
-    _status(client, max_, a["id"], status="maschine", maschine="Holzma")
+    _status(client, max_, a["id"], status="maschine", maschine="Plattensäge")
     h = auth_header(admin)
     r = client.post(SCHAERF, json={"dienst": " Schärfdienst Müller ", "werkzeug_ids": [a["id"], b["id"], a["id"]], "notiz": "Abholung Do"}, headers=h)
     assert r.status_code == 201, r.text
@@ -197,8 +200,8 @@ def test_uebersicht_zaehlt_und_meldet_fehlenden_ersatz(client, admin, max_):
     a = _neu(client, admin, artikelnummer="LZ-300")
     b = _neu(client, admin, artikelnummer="LZ-300")
     c = _neu(client, admin, art="fraeser", bezeichnung="Fügefräser DP")
-    _status(client, max_, a["id"], status="maschine", maschine="Holzma")
-    _status(client, max_, c["id"], status="maschine", maschine="Kante")
+    _status(client, max_, a["id"], status="maschine", maschine="Plattensäge")
+    _status(client, max_, c["id"], status="maschine", maschine="CNC liegend")
     u = client.get(f"{API}/uebersicht", headers=auth_header(max_)).json()
     assert u["gesamt"] == 3 and u["je_status"]["maschine"] == 2 and u["je_status"]["lager"] == 1
     assert [g["bezeichnung"] for g in u["ohne_ersatz"]] == ["Fügefräser DP"]   # LZ-300 hat noch eins im Lager
@@ -217,3 +220,128 @@ def test_aendern_und_qr_etikett(client, admin, max_):
     pdf = client.get(f"{API}/{a['id']}/qr-code", headers=h)
     assert pdf.status_code == 200 and pdf.headers["content-type"] == "application/pdf" and pdf.content.startswith(b"%PDF")
     assert client.get(f"{API}/{a['id']}/qr-code", headers=auth_header(max_)).status_code == 403
+
+
+# ---- Ausbau nach den Antworten von fb (2026-11-11) ----
+
+def test_einsatzgebiet_und_parameter_werden_gespeichert_und_gefunden(client, admin, max_):
+    w = _neu(client, admin, art="fraeser", bezeichnung="Schaftfräser D12", einsatzgebiet=" Formatieren und Nuten ",
+             materialien="Spanplatte, MDF, Spanplatte, ", drehzahl_empfohlen=18000, vorschub_empfohlen=6.5,
+             parameter_notiz="Zustellung max. 12 mm, Gegenlauf")
+    assert (w["einsatzgebiet"], w["materialien"], w["drehzahl_empfohlen"], w["vorschub_empfohlen"]) == ("Formatieren und Nuten", "Spanplatte, MDF", 18000, 6.5)
+    assert w["parameter_notiz"] == "Zustellung max. 12 mm, Gegenlauf" and w["masse_pruefen"] is False
+    h = auth_header(max_)
+    assert [x["code"] for x in client.get(f"{API}?suche=nuten", headers=h).json()] == ["FR-001"]
+    assert [x["code"] for x in client.get(f"{API}?suche=mdf", headers=h).json()] == ["FR-001"]
+    assert client.get(f"{API}?suche=aluminium", headers=h).json() == []
+
+
+def test_einbauen_nur_in_maschinen_der_liste(client, admin, max_):
+    w = _neu(client, admin)
+    r = _status(client, max_, w["id"], status="maschine", maschine="Bandsäge")
+    assert r.status_code == 400 and "Maschinenliste" in r.json()["detail"]
+    assert _status(client, max_, w["id"], status="maschine", maschine="kappsäge").json()["maschine"] == "Kappsäge"
+
+
+def test_maschinenliste_anlegen_umbenennen_abschalten(client, db, admin, max_):
+    h = auth_header(admin)
+    liste = client.get(f"{API}/maschinen", headers=auth_header(max_)).json()
+    assert len(liste) == 7 and all(m["aktiv"] for m in liste)
+    stehend = next(m for m in liste if m["name"] == "CNC stehend")
+    assert client.post(f"{API}/maschinen", json={"name": "Bandsäge"}, headers=auth_header(max_)).status_code == 403
+    assert client.post(f"{API}/maschinen", json={"name": "Bandsäge"}, headers=h).status_code == 201
+    assert client.post(f"{API}/maschinen", json={"name": "bandsäge"}, headers=h).status_code == 409
+    w = _neu(client, admin, art="fraeser", bezeichnung="Fräser")
+    _status(client, max_, w["id"], status="maschine", maschine="CNC stehend")
+    # Abschalten geht nicht, solange etwas eingebaut ist
+    assert client.put(f"{API}/maschinen/{stehend['id']}", json={"name": "CNC stehend", "aktiv": False}, headers=h).status_code == 409
+    # Umbenennen zieht das eingebaute Werkzeug mit
+    r = client.put(f"{API}/maschinen/{stehend['id']}", json={"name": "CNC Homag BHX", "aktiv": True}, headers=h)
+    assert r.status_code == 200 and r.json()["name"] == "CNC Homag BHX"
+    assert client.get(f"{API}/{w['id']}", headers=h).json()["maschine"] == "CNC Homag BHX"
+    assert client.put(f"{API}/maschinen/{stehend['id']}", json={"name": "Plattensäge", "aktiv": True}, headers=h).status_code == 409
+    assert client.put(f"{API}/maschinen/9999", json={"name": "x", "aktiv": True}, headers=h).status_code == 404
+    _status(client, max_, w["id"], status="lager")
+    assert client.put(f"{API}/maschinen/{stehend['id']}", json={"name": "CNC Homag BHX", "aktiv": False}, headers=h).json()["aktiv"] is False
+    assert "CNC Homag BHX" not in client.get(f"{API}/stammwerte", headers=h).json()["maschinen"]
+
+
+def test_rueckkehr_neu_bestueckt_setzt_schaerfzaehler_zurueck(client, admin):
+    h = auth_header(admin)
+    w = _neu(client, admin, max_schaerfungen=3)
+
+    def runde(ergebnis):
+        a = client.post(SCHAERF, json={"dienst": "Leuco", "werkzeug_ids": [w["id"]]}, headers=h).json()
+        r = client.post(f"{SCHAERF}/{a['id']}/rueckgabe", headers=h, json={"positionen": [{"werkzeug_id": w["id"], "ergebnis": ergebnis}]})
+        assert r.status_code == 200, r.text
+        return client.get(f"{API}/{w['id']}", headers=h).json()
+
+    assert runde("geschaerft")["anzahl_schaerfungen"] == 1
+    d = runde("geschaerft")
+    assert (d["anzahl_schaerfungen"], d["rest_schaerfungen"]) == (2, 1)
+    d = runde("neu_bestueckt")
+    assert (d["status"], d["anzahl_schaerfungen"], d["rest_schaerfungen"], d["masse_pruefen"]) == ("lager", 0, 3, False)
+    assert "neu bestückt" in d["ereignisse"][0]["text"] and "Schärfzähler beginnt neu" in d["ereignisse"][0]["text"]
+    assert runde("geschaerft")["anzahl_schaerfungen"] == 1
+
+
+def test_rueckkehr_fraeser_neue_masse_und_pruefhinweis(client, admin, max_):
+    h = auth_header(admin)
+    f = _neu(client, admin, art="fraeser", bezeichnung="Schaftfräser D12", durchmesser_mm=12, schneidenlaenge_mm=35)
+    blatt = _neu(client, admin)
+    a = client.post(SCHAERF, json={"dienst": "Bukara", "werkzeug_ids": [f["id"], blatt["id"]]}, headers=h).json()
+    assert a["positionen"][0]["werkzeug_art"] == "fraeser"
+    r = client.post(f"{SCHAERF}/{a['id']}/rueckgabe", headers=h, json={"positionen": [
+        {"werkzeug_id": f["id"], "neuer_durchmesser_mm": 11.8, "neue_laenge_mm": 34.5},
+        {"werkzeug_id": blatt["id"], "neuer_durchmesser_mm": 290}]})
+    assert r.status_code == 200, r.text
+    d = client.get(f"{API}/{f['id']}", headers=h).json()
+    assert (d["durchmesser_mm"], d["schneidenlaenge_mm"], d["masse_pruefen"]) == (11.8, 34.5, True)
+    assert "Neuer Durchmesser 11,8 mm. Neue Länge 34,5 mm. Maße an der CNC prüfen." in d["ereignisse"][0]["text"]
+    b = client.get(f"{API}/{blatt['id']}", headers=h).json()
+    assert (b["durchmesser_mm"], b["masse_pruefen"]) == (None, False)      # Sägeblätter brauchen das nicht
+    u = client.get(f"{API}/uebersicht", headers=h).json()
+    assert [x["code"] for x in u["masse_pruefen"]] == ["FR-001"]
+    # Abhaken darf jeder Angemeldete; zweimal schadet nicht
+    d = client.post(f"{API}/{f['id']}/masse-geprueft", headers=auth_header(max_)).json()
+    assert d["masse_pruefen"] is False and d["ereignisse"][0]["text"] == "Maße an der CNC geprüft und eingetragen."
+    assert len(client.post(f"{API}/{f['id']}/masse-geprueft", headers=auth_header(max_)).json()["ereignisse"]) == len(d["ereignisse"])
+    assert client.get(f"{API}/uebersicht", headers=h).json()["masse_pruefen"] == []
+
+
+def test_uebersicht_nach_ort_und_fast_aufgebraucht(client, admin, max_):
+    h = auth_header(admin)
+    a = _neu(client, admin, lagerort="Schrank 1", max_schaerfungen=1)
+    b = _neu(client, admin, lagerort="Schrank 2")
+    c = _neu(client, admin)
+    _status(client, max_, b["id"], status="maschine", maschine="Plattensäge", platz="Hauptsäge")
+    u = client.get(f"{API}/uebersicht", headers=h).json()
+    maschinen = {m["name"]: m["werkzeuge"] for m in u["nach_ort"]["maschinen"]}
+    assert list(maschinen)[:3] == ["CNC liegend", "CNC stehend", "Plattensäge"]     # alle Maschinen, auch leere
+    assert maschinen["CNC liegend"] == [] and [(w["code"], w["platz"]) for w in maschinen["Plattensäge"]] == [("SB-002", "Hauptsäge")]
+    assert [(g["name"], [w["code"] for w in g["werkzeuge"]]) for g in u["nach_ort"]["lager"]] == [("Schrank 1", ["SB-001"]), ("Ohne Fach", ["SB-003"])]
+    assert [(x["code"], x["rest"]) for x in u["fast_aufgebraucht"]] == [("SB-001", 1)]
+
+
+def test_verbrauchsteile_bestand_entnahme_mindestbestand(client, db, admin, max_):
+    V = "/api/verbrauchsteile"
+    h, hm = auth_header(admin), auth_header(max_)
+    assert client.post(V, json={"bezeichnung": "Fügemesser"}, headers=hm).status_code == 403
+    t = client.post(V, json={"bezeichnung": " Fügemesser 20 mm ", "maschine": "Kantenanleimmaschine", "bestand": 6, "mindestbestand": 4, "lagerort": "Schublade 2"}, headers=h).json()
+    assert (t["bezeichnung"], t["bestand"], t["unter_mindestbestand"]) == ("Fügemesser 20 mm", 6, False)
+    assert t["bewegungen"][0]["text"] == "Anfangsbestand"
+    # Entnahme durch Mitarbeiter
+    r = client.post(f"{V}/{t['id']}/bewegung", json={"menge": -3, "text": "Messer getauscht"}, headers=hm)
+    assert r.status_code == 200 and (r.json()["bestand"], r.json()["unter_mindestbestand"]) == (3, True)
+    assert (r.json()["bewegungen"][0]["menge"], r.json()["bewegungen"][0]["benutzer_name"]) == (-3, "Vor Nach")
+    assert client.post(f"{V}/{t['id']}/bewegung", json={"menge": -4}, headers=hm).status_code == 409     # nicht unter null
+    assert client.post(f"{V}/{t['id']}/bewegung", json={"menge": 0}, headers=hm).status_code == 400
+    assert [x["bezeichnung"] for x in client.get(f"{API}/uebersicht", headers=hm).json()["nachbestellen"]] == ["Fügemesser 20 mm"]
+    assert client.post(f"{V}/{t['id']}/bewegung", json={"menge": 10, "text": "Lieferung"}, headers=hm).json()["bestand"] == 13
+    # Stammdaten ändern lässt den Bestand in Ruhe
+    r = client.put(f"{V}/{t['id']}", json={"bezeichnung": "Fügemesser 20 mm HW", "bestand": 99, "mindestbestand": 2}, headers=h)
+    assert (r.json()["bestand"], r.json()["mindestbestand"]) == (13, 2)
+    assert len(client.get(V, headers=hm).json()) == 1
+    assert client.delete(f"{V}/{t['id']}", headers=hm).status_code == 403
+    assert client.delete(f"{V}/{t['id']}", headers=h).status_code == 204
+    assert client.get(f"{V}/{t['id']}", headers=h).status_code == 404

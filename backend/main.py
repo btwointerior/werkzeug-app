@@ -103,6 +103,7 @@ app.include_router(freie_ausgabe_router.router)
 app.include_router(sso_router.router)
 app.include_router(schneidwerkzeug_router.router)
 app.include_router(schneidwerkzeug_router.schaerf_router)
+app.include_router(schneidwerkzeug_router.verbrauch_router)
 
 # Statische Frontend-Dateien (JS, CSS, Bilder) unter /static/*.
 app.mount("/static", StaticFiles(directory=_FRONTEND_DIR), name="static")
